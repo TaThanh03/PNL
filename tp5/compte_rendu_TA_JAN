@@ -1,6 +1,9 @@
-Ex1 : q1->q2->q3->5->6->4
+=============================Ex1==================================
+Question 1: OK
+Question 2: 
+Moyen de communication: TCP client-server
 
-Question 3:
+Question 3, 5, 6:
 1. start VM
 2. dans VM, "echo g > /proc/sysrq-trigger" => allumer le serveur KGDB
 3. dans host machine, /linux-4.9.86 "gdb vmlinux"
@@ -8,4 +11,72 @@ Question 3:
 5. ping-pong entre client GDB et server KGDB avec les commands "continue" et "echo g > /proc/sysrq-trigger"
 
 Question 4:
+
+=============================Ex2==================================
+Question 1: OK
+
+Question 2:
+(gdb) print init_uts_ns
+
+$1 = {kref = {refcount = {counter = 4}}, name = {
+    sysname = "Linux", '\000' <repeats 59 times>, 
+    nodename = "pnl-tp", '\000' <repeats 58 times>, 
+    release = "4.9.86", '\000' <repeats 58 times>, 
+    version = "#2 SMP Thu Mar 8 17:36:55 CET 2018", '\000' <repeats 30 times>, machine = "x86_64", '\000' <repeats 58 times>, 
+    domainname = "(none)", '\000' <repeats 58 times>}, 
+  user_ns = 0xffffffff8225cc40 <init_user_ns>, 
+  ucounts = 0x0 <irq_stack_union>, ns = {stashed = {counter = 0}, 
+    ops = 0xffffffff81c30c00 <utsns_operations>, inum = 4026531838}}
+
+(gdb) set variable init_uts_ns.name.sysname = "BLABLA"
+
+(gdb) print init_uts_ns
+
+$2 = {kref = {refcount = {counter = 4}}, name = {
+    sysname = "BLABLA", '\000' <repeats 58 times>, 
+    nodename = "pnl-tp", '\000' <repeats 58 times>, 
+    release = "4.9.86", '\000' <repeats 58 times>, 
+    version = "#2 SMP Thu Mar 8 17:36:55 CET 2018", '\000' <repeats 30 times>, machine = "x86_64", '\000' <repeats 58 times>, 
+    domainname = "(none)", '\000' <repeats 58 times>}, 
+  user_ns = 0xffffffff8225cc40 <init_user_ns>, 
+  ucounts = 0x0 <irq_stack_union>, ns = {stashed = {counter = 0}, 
+    ops = 0xffffffff81c30c00 <utsns_operations>, inum = 4026531838}}
+
+Question 3:
+
+=============================Ex3==================================
+Question 1:
+/**
+ * kthread_run - create and wake a thread.
+ * @threadfn: the function to run until signal_pending(current).
+ * @data: data ptr for @threadfn.
+ * @namefmt: printf-style name for the thread.
+ *
+ * Description: Convenient wrapper for kthread_create() followed by
+ * wake_up_process().  Returns the kthread or ERR_PTR(-ENOMEM).
+ */
+/**
+ * my_hanging_fn - set current state of the thread to TASK_UNINTERRUPTIBLE
+ */
+/**
+ * schedule_timeout - sleep until timeout 
+ * TASK_UNINTERRUPTIBLE - at least timeout jiffies are guaranteed to
+ * pass before the routine returns. The routine will return 0
+ */
+https://stackoverflow.com/questions/223644/what-is-an-uninterruptable-process
+TASK_UNINTERRUPTIBLE, the uninterruptible sleep. If a task is marked with this flag, it is not expecting to be woken up by anything other than whatever it is waiting for, either because it cannot easily be restarted, or because programs are expecting the system call to be atomic. This can also be used for sleeps known to be very short.
+
+Question 2:
+Il crash
+INFO: task my_hanging_fn:329 blocked for more than 30 seconds.
+Explication: le task devient non-interruptible et jamais reveille
+
+Question 3,4: OK
+
+Question 7:
+La solution qui ne modifie que le module:
+set_current_state(TASK_INTERRUPTIBLE);
+=============================Ex4==================================
+
+
 
