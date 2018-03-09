@@ -1,0 +1,16 @@
+1. 
+le résultat du test de stabilité (sur la parité du numéro
+mineur) n'est pas correct
+2.
+struct version:
+[           short         ][               long           ][   char   ]
+
+la fonction 
+ 	int is_unstable(struct version *v){
+		return 1 & ((char *)v)[sizeof(unsigned short)];
+	}
+fait un test binaire entre bit 1 et le debut des octets qui stoquent "minor" 
+tandis qu'on veux comparer bit 1 et le bit a la fin des octets qui stoquent "minor"
+5.
+pas optimum 
+

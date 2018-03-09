@@ -1,0 +1,22 @@
+sigfillset(~<31-32>)                      = 0
+sigaction(SIGALRM, { 0x55d65f72d92a, ~<31-32>, 0xffffffff, 0xffffffffffffffff }, nil) = 0
+alarm(3)                                  = 0
+puts("Enter : (i) insert (r) remove (e"...) = 38
+read(0 <no return ...>
+--- SIGALRM (Alarm clock) ---
+func(14, 0x7ffd8159fe70, 0x7ffd8159fd40, 0x7f877f00f021) = 39
+alarm(3)                                  = 0
+<... read resumed> , "i", 1)              = 1
+puts("Inserting a new function")          = 25
+puts("Enter : (i) insert (r) remove (e"...) = 38
+read(0, "\n", 1)                          = 1
+read(0 <no return ...>
+--- SIGALRM (Alarm clock) ---
+func(14, 0x7ffd8159fe70, 0x7ffd8159fd40, 0x7f877f00f021) = 39
+alarm(3)                                  = 0
+<... read resumed> , "r", 1)              = 1
+puts("Restoring the default function")    = 31
+puts("Enter : (i) insert (r) remove (e"...) = 38
+read(0, "\n", 1)                          = 1
+read(0, "e", 1)                           = 1
++++ exited (status 0) +++

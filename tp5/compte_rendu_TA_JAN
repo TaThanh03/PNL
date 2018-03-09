@@ -1,0 +1,11 @@
+Ex1 : q1->q2->q3->5->6->4
+
+Question 3:
+1. start VM
+2. dans VM, "echo g > /proc/sysrq-trigger" => allumer le serveur KGDB
+3. dans host machine, /linux-4.9.86 "gdb vmlinux"
+4. dans host machine, allumer GDB, tapper "target remote :1234" => allumer le client GDB
+5. ping-pong entre client GDB et server KGDB avec les commands "continue" et "echo g > /proc/sysrq-trigger"
+
+Question 4:
+

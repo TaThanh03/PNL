@@ -1,0 +1,32 @@
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/fs.h>
+#include <asm/io.h>
+
+MODULE_DESCRIPTION("Module \"show_sb\" pour noyau linux");
+MODULE_AUTHOR("Thanh TA - JAN Klos, LIP6");
+MODULE_LICENSE("GPL");
+
+/*extern void iterate_supers(void (*f)(struct super_block *, void *), void *arg);*/
+EXPORT_SYMBOL(iterate_supers_type);
+
+static void print_super(struct super_block *super, void *nothing)
+{
+  char *uuid_str = "ddd";
+  /*uuid_unparse_lower(super.uuid, uuid_str);*/
+	pr_info("uuid=%s type=%s", uuid_str, super->s_type->name);
+}
+
+static int __init show_sb_init(void)
+{
+	iterate_supers(&print_super, NULL);
+	return 0;
+}
+module_init(show_sb_init);
+
+static void __exit show_sb_exit(void)
+{
+	pr_info(KERN_INFO "Goodbye,  show_sb module\n");
+}
+module_exit(show_sb_exit);

@@ -1,0 +1,129 @@
+Exercice 1
+
+Question 1 :
+Le résultat de la commande : après 90 secondes d'attente il y a un message "Timed out waiting for device dev-sdb.device". C'est causé par une erreur lors de vérification de système de fichier.
+
+Question 2 :
+On exécute la commande qui crée une copie d'image dans notre répertoire maison.
+
+Question 3 :
+On modifie des chemins :
+HDA="-hda /tmp/pnl-tp.img"
+HDB="-hdb ~/myHome.img"
+
+
+
+Exercice 2 :
+
+Question 1 :
+La commande "make nconfig" offre plusieurs options de configuration telles que le choix de système de fichier, les paramètres de réseau, de BUS, etc.
+
+Question 2 :
+L'option -j sert à définir le nombre de processus. Elle est importante car par défaut cette valeur est mise à infinité qui peut causer un sort de "fork bomb".
+
+Question 3 :
+
+Question 4 :
+On modifie des chemins avec les chemins de nos fichiers:
+HDA="-hda /tmp/pnl-tp.img"
+HDB="-hdb ~/myHome.img"
+On n'est pas sûr qu’il s’agit de notre noyau parce que le nom du noyau est default 
+
+Question 5 :
+On modifie le nom 
+
+QUestion 6 :
+
+Exercice 3 :
+
+Question 1 :
+#define <stdio.h>
+int main(){
+	printf("Hello world\n");
+	sleep(5);
+	return 0;
+}
+
+Question 2 :
+Dans qemu-run-externKernel.sh on ajoute:
+CMDLINE='root=/dev/sda1 rw vga=792 console=ttyS0 kgdboc=ttyS1 init=hello_world.o' ? je ne suis pas sur
+
+Question 3 :
+Le système fini par crasher parce que a la fin du "hello_wolrd", il retourne et ne sais pas il faut faire quoi apres
+
+
+Question 4 :
+La plupart des commandes sont actives, par contre on ne peut pas lancer directement une commande ps dans le shell ainsi obtenu.
+Parce que la table de processus n'est pas encore chargee?
+
+Question 5 :
+
+Question 6 :
+
+Exercice 4 :
+
+Question 1 :
+
+Exercice 5 :
+Q1 : OK
+
+Q2 :
+- Modifier Makefile pour que cron_func puisse utiliser dynamique bibliotheque "libfunc.so"
+cron_func : cron_func.o 
+	gcc -L. -Wall $^ -o $@ -lfunc
+- Compiler "libfunc.so"
+gcc -shared -fPIC nothing.c -o libfunc.so
+- Il faut donner library path en passant dans le variable LD_LIBRARY_PATH
+echo $LD_LIBRARY_PATH
+LD_LIBRARY_PATH=./
+export LD_LIBRARY_PATH
+
+Q3:
+- Ecrire fonction "fake_read.c"
+==============================
+#include <stdio.h>
+ssize_t read(int fd, char *buf, size_t count){
+	*buf = 'e';
+	printf("Tchao !!!\n");
+	return 1;
+}
+=============================
+- Compiler bibliotheque "libread.so"
+gcc -shared -fPIC fake_read.c -o libread.so
+- Exécuter le programme en utilisant dynamique bibliotheque "libread.so"
+LD_PRELOAD=./libread.so ./cron_func
+
+Q4:
+- Code "fake_read.c"
+==============================
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <stdio.h>
+typedef int (*orig_read_type)(int fd, void *buf, size_t count);
+
+ssize_t read(int fd, void *buf, size_t count){
+	char my_buff = 0;
+  orig_read_type orig_read;
+  orig_read = (orig_read_type)dlsym(RTLD_NEXT,"read");
+	if(orig_read(fd, &my_buff, count) == sizeof(char) && my_buff == 'r'){
+		*(char *)buf = 'i';
+		return 1;
+	}
+  return orig_read(fd, buf, count);
+}
+==============================
+- Compiler bibliotheque "libread.so"
+I had to append -ldl, so that this shared library is linked to libdl, which provides the dlsym function
+gcc -shared -fPIC fake_read.c -o libread.so -ldl 
+- Exécuter le programme en utilisant dynamique bibliotheque "libread.so"
+LD_PRELOAD=./libread.so ./cron_func
+
+Q5:https://security.stackexchange.com/questions/63599/is-there-any-way-to-block-ld-preload-and-ld-library-path-on-linux
+
+Q6: "cron_func.c"
+==================
+
+
+
+
+

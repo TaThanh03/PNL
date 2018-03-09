@@ -1,0 +1,97 @@
+Exercice 1
+
+Question 1 :
+Le résultat de la commande : après 90 secondes d'attente il y a un message "Timed out waiting for device dev-sdb.device". C'est causé par une erreur lors de vérification de système de fichier.
+
+Question 2 :
+On exécute la commande qui crée une copie d'image dans notre répertoire maison.
+
+Question 3 :
+On modifie des chemins :
+HDA=/tmp/pnl-tp.img
+HDB=~/myHome.img
+
+
+
+---
+
+
+
+Exercice 2 :
+
+(Nous avons utilisé kernel linux_4.9.85)
+
+Question 1 :
+La commande "make nconfig" offre plusieurs options de configuration telles que le choix de système de fichier, les paramètres de réseau, de BUS, etc.
+
+Question 2 :
+L'option -j sert à définir le nombre de processus. Elle est importante car par défaut cette valeur est mise à infinité qui peut causer un sort de "fork bomb".
+
+Question 3 :
+Le résultat de la commande "file arch/x86/boot/bzImage" :
+arch/x86/boot/bzImage: Linux kernel x86 boot executable bzImage, version 4.9.85 (komp@komp) #1 SMP Thu Mar 1 00:44:33 CET 2018, RO-rootFS, swap_dev 0x7, Normal VGA
+
+
+Question 4 :
+On modifie des chemins avec les chemins de nos fichiers:
+HDA="-hda /tmp/pnl-tp.img"
+HDB="-hdb ~/myHome.img"
+On n'est pas sûr est-ce qu’il s’agit de notre noyau parce que son nom est default. 
+
+Question 5 :
+On utlise l'outil de configuration "make menuconfig". Le nom peut être changé grâce à l'option "General Setup -> Default hostname".
+
+Question 6 :
+On peut voir la liste des modules chargés en affichant le contenu de "/proc/modules". Leurs messages peuvent être affichés en exécutant la commande "dmesg".
+
+
+
+---
+
+
+
+Exercice 3
+
+
+Question 1 :
+#define <stdio.h>
+int main() {
+	printf("Hello world\n");
+	sleep(5);
+	return 0;
+}
+
+Le fichier exécutable "hello_world.o" est placé à la racine du système.
+
+Question 2 :
+Dans qemu-run-externKernel.sh on ajoute :
+CMDLINE='root=/dev/sda1 rw vga=792 console=ttyS0 kgdboc=ttyS1 init=hello_world.o'
+
+Question 3 :
+Le système finit par crasher parce que normalement le processus init lance les autres processus qui sont nécessaires et là ce n'est pas le cas, de plus , donc le système ne sait pas quoi faire. 
+
+
+Question 4 :
+Dans qemu-run-externKernel.sh on change :
+CMDLINE='root=/dev/sda1 rw vga=792 console=ttyS0 kgdboc=ttyS1 init=/bin/bash'
+On est bien le processus 1 - on peut voir son pid en lancant lan commande "echo $$".
+On ne peut pas lancer directement une commande "ps" dans le shell ainsi obtenu car /proc n'est pas "mounté", c'est une tâche de init.
+
+Question 5 :
+On résout le problème en lancant la commande "mount -t none proc /proc".
+
+Question 6 :
+On le fait en lancant la commande "exec init". Elle transforme le processus courant en init.
+
+
+---
+
+
+Exercice 4
+
+Question 1 :
+Il s'agit de la machine h et non pas de la VM.
+
+Question 2 :
+L'option "-static" sert à forcer le compilateur à n'utiliser que les bibliothèques statiques. Les bibliothèques partagées ne sont pas permies.
+Le programme ainsi créé est autonome.
