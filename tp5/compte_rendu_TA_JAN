@@ -1,21 +1,36 @@
 =============================Ex1==================================
-Question 1: OK
+
+Question 1: 
+
+make nconfig -> Kernel hacking -> KGDB: kernel debugger 
+
+
 Question 2: 
-Moyen de communication: TCP client-server
+
+Moyen de communication: TCP client-server, port 1234
+
 
 Question 3, 5, 6:
+
 1. start VM
-2. dans VM, "echo g > /proc/sysrq-trigger" => allumer le serveur KGDB
-3. dans host machine, /linux-4.9.86 "gdb vmlinux"
-4. dans host machine, allumer GDB, tapper "target remote :1234" => allumer le client GDB
+2. dans VM, "echo g > /proc/sysrq-trigger" -> démarrer le serveur KGDB
+3. dans machine hôte, /linux-4.9.86 "gdb vmlinux"
+4. dans machine hôte, démarrer GDB, tapper "target remote :1234" -> démarrer le client GDB
 5. ping-pong entre client GDB et server KGDB avec les commands "continue" et "echo g > /proc/sysrq-trigger"
+
 
 Question 4:
 
 =============================Ex2==================================
-Question 1: OK
+
+Question 1: 
+
+Variable init_uts_ns est initialisée dans /init/version.c
+Elle contient des champs suivants: sysname, nodename, release, version, machine, domainname
+
 
 Question 2:
+
 (gdb) print init_uts_ns
 
 $1 = {kref = {refcount = {counter = 4}}, name = {
@@ -42,10 +57,10 @@ $2 = {kref = {refcount = {counter = 4}}, name = {
   ucounts = 0x0 <irq_stack_union>, ns = {stashed = {counter = 0}, 
     ops = 0xffffffff81c30c00 <utsns_operations>, inum = 4026531838}}
 
-Question 3:
-
 =============================Ex3==================================
+
 Question 1:
+
 /**
  * kthread_run - create and wake a thread.
  * @threadfn: the function to run until signal_pending(current).
@@ -66,16 +81,33 @@ Question 1:
 https://stackoverflow.com/questions/223644/what-is-an-uninterruptable-process
 TASK_UNINTERRUPTIBLE, the uninterruptible sleep. If a task is marked with this flag, it is not expecting to be woken up by anything other than whatever it is waiting for, either because it cannot easily be restarted, or because programs are expecting the system call to be atomic. This can also be used for sleeps known to be very short.
 
-Question 2:
-Il crash
-INFO: task my_hanging_fn:329 blocked for more than 30 seconds.
-Explication: le task devient non-interruptible et jamais reveille
 
-Question 3,4: OK
+Question 2:
+
+La tâche crashe.
+INFO: task my_hanging_fn:329 blocked for more than 30 seconds.
+Explication: la tâche devient non-interruptible et jamais reveillée.
+
+
+Question 3: 
+
+make nconfig -> Kernel hacking -> Debug Lockups and Hangs -> Panic (Reboot On Hung Tasks
+
+
+Question 4:
+
+
+Question 5:
+
+
+Question 6:
+
 
 Question 7:
+
 La solution qui ne modifie que le module:
 set_current_state(TASK_INTERRUPTIBLE);
+
 =============================Ex4==================================
 
 
