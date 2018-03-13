@@ -21,6 +21,9 @@ Question 3, 5, 6:
 
 Question 4:
 
+monitor ps est de plus haut niveau, donnant des informations comme pid, ppid, la commande utilisée. Orienté processus.
+Info thread se focalise sur les threads. 
+
 =============================Ex2==================================
 
 Question 1: 
