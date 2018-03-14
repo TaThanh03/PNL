@@ -13,9 +13,9 @@ Moyen de communication: TCP client-server, port 1234
 Question 3, 5, 6:
 
 1. start VM
-2. dans VM, "echo g > /proc/sysrq-trigger" -> démarrer le serveur KGDB
-3. dans machine hôte, /linux-4.9.86 "gdb vmlinux"
-4. dans machine hôte, démarrer GDB, tapper "target remote :1234" -> démarrer le client GDB
+2. dans machine hôte, /linux-4.9.86 "gdb vmlinux"
+3. dans machine hôte, démarrer GDB, tapper "target remote :1234" -> démarrer le client GDB
+4. dans VM, "echo g > /proc/sysrq-trigger" -> démarrer le serveur KGDB
 5. ping-pong entre client GDB et server KGDB avec les commands "continue" et "echo g > /proc/sysrq-trigger"
 
 
@@ -87,6 +87,8 @@ TASK_UNINTERRUPTIBLE, the uninterruptible sleep. If a task is marked with this f
 
 Question 2:
 
+La thread de module devrait être bloquée pendant une minute.
+
 La tâche crashe.
 INFO: task my_hanging_fn:329 blocked for more than 30 seconds.
 Explication: la tâche devient non-interruptible et jamais reveillée.
@@ -99,11 +101,18 @@ make nconfig -> Kernel hacking -> Debug Lockups and Hangs -> Panic (Reboot On Hu
 
 Question 4:
 
+// copier le résultat de backtrace
 
 Question 5:
 
+// copier le résultat de monitor ps
+
+// copier le résultat de monitor btp
+
 
 Question 6:
+
+Seconde addresse correspond au lieu où le module est chargé.
 
 
 Question 7:
@@ -113,5 +122,41 @@ set_current_state(TASK_INTERRUPTIBLE);
 
 =============================Ex4==================================
 
+Question 1:
+
+Il y a la liste des timers &prdebug_timer. Son champ data = kstat_cpu(0).irqs_sum. 0 car il s'agit de processeur numéro 0. irqs_sum est le nombre de irqs depuis le début. On y supprime le nombre précédent pour avoir la valeur exacte pendant le dernier créneau.
+
+Rien n'est affiché parce que DDEBUG n'est pas activé. Il faut ajouter la ligne suivante dans le Makefile :
+
+CFLAGS_prdebug.o := -DDEBUG
+
+Question 2:
+
+echo -n 'module prdebug +p' > /sys/kernel/debug/dynamic_debug/control
+
+Le fichier de control est modifié. +p veut dire qu'on veut activer tous les messages du module dont le nom suit "module", dans ce cas prdebug.
+
+Question 3:
+
+echo -n 'module prdebug +pmfl' > /sys/kernel/debug/dynamic_debug/control
+
+Question 4:
+
+echo -n 'module prdebug line 13 +pmfl' > /sys/kernel/debug/dynamic_debug/control
+
+=============================Ex5==================================
+
+Question 1:
+ 
+Un nouveau thread est créé. Il va s'occuper d'afficher, tous les 10 sezcondes, le status du CPU qui est sauvegardé dans le struct my_kcpustat.
+
+Question 2:
+
+Le module crashe.
+
+Question 3:
+
+add-symbol-file ../PNL-master/tp5/EXO-05/kcpustat.o xffffffffa0000000
+(le chemin au fichier et la deuxième adresse donnée par la commande monitor lsmod)
 
 
