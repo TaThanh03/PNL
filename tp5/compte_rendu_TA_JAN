@@ -101,7 +101,8 @@ make nconfig -> Kernel hacking -> Debug Lockups and Hangs -> Panic (Reboot On Hu
 
 Question 4:
 
-/le résultat de backtrace
+On voit que le problème est apparu dehors le code de hanging (mais il a été causé par une attente trop longue de hanging).
+
 #0  kgdb_breakpoint () at kernel/debug/debug_core.c:1072
 #1  0xffffffff811e4f62 in kgdb_panic_event (
     self=0xffffffff822771b0 <kgdb_panic_event_nb>, val=0, 
