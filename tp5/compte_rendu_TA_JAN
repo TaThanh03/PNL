@@ -201,13 +201,26 @@ Question 2:
 Le module crashe.
 
 Question 3:
+- Le résultat de backtrace n’est pas exploitable:
+(gdb) backtrace 
+#0  0xffffffffa00001ef in ?? ()
+#1  0x000000000000000f in irq_stack_union ()
+#2  0x0000000000000000 in ?? ()
 
-add-symbol-file ../PNL-master/tp5/EXO-05/kcpustat.o xffffffffa0000000
-(le chemin au fichier et la deuxième adresse donnée par la commande monitor lsmod)
+- On fait "monitor lsmod":
+Module                  Size  modstruct     Used by
+kcpustat                2342  0xffffffffa00004c0    0  (Live) 0xffffffffa0000000 [ ]
 
-echo -n 'module kcpustat +pmfl' > /sys/kernel/debug/dynamic_debug/control
-
-Ex5
+- Chargez les symboles de votre module (le fichier .o) en indiquant à KGDB l’adresse de chargement du module:
 add-symbol-file ../PNL-master/tp5/EXO-05/kcpustat.o 0xffffffffa0000000
 
+- Le résultat de backtrace est exploitable:
+(gdb) backtrace 
+#0  print_stats () at /home/ta/workplace/PNL/PNL-master/tp5/EXO-05/kcpustat.c:75
+#1  0xffffffffa0000320 in my_kcpustat_fn (data=0xdead000000000100) at /home/ta/workplace/PNL/PNL-master/tp5/EXO-05/kcpustat.c:102
+#2  0xffffffff8115e7b9 in kthread (_create=0xffff88003b53d780) at kernel/kthread.c:211
+#3  0xffffffff81b42c37 in ret_from_fork () at arch/x86/entry/entry_64.S:374
+#4  0x0000000000000000 in ?? ()
 
+Question 4:
+La ligne 75 de code du module kcpustat pose problème.
