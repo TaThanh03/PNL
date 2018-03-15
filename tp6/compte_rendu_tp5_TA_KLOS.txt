@@ -1,6 +1,7 @@
 =============================Ex1==================================
 
 Question 1: 
+Non, le résultat de l'affichage (cat) est défini par la fonction hello_show. En fait, c'est un faux fichier en mémoire.
 
 
 =============================Ex2==================================
