@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 
 MODULE_DESCRIPTION("A hellosysfs monitor");
 MODULE_AUTHOR("KLOS, TA");
@@ -9,17 +10,19 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1");
 
 static int toto;
+static struct kobject *kobject;
 
 static ssize_t show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-        return sprintf("Hello sysfs!\n");
+        return sprintf(buf, "Hello sysfs!\n", toto);
 }
 
 static int hellosysfs_init(void)
 {
         kobject = kobject_create_and_add("hello", kernel_kobj); 
-        if(!kobject) return -ENOMEM;
-        static struct kobj_attribute attribute =__ATTR(toto, __ATTR_RO, show,  NULL);
+        if(!kobject) 
+		return -ENOMEM;
+        static struct kobj_attribute attribute =__ATTR(toto, __ATTR_RO(hello), show,  NULL);
         sysfs_create_file(kobject, attribute);
         pr_info("hellosysfs module loaded\n");
 }
