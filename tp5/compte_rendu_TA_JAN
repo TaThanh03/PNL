@@ -111,4 +111,9 @@ set_current_state(TASK_INTERRUPTIBLE);
 =============================Ex4==================================
 
 
+echo -n 'module kcpustat +pmfl' > /sys/kernel/debug/dynamic_debug/control
+
+Ex5
+add-symbol-file ../PNL-master/tp5/EXO-05/kcpustat.o 0xffffffffa0000000
+
 

@@ -10,7 +10,7 @@ static struct task_struct *hanging_thread;
 
 int my_hanging_fn(void *data)
 {
-	set_current_state(TASK_INTERRUPTIBLE);
+	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(60*HZ);
 	pr_warn("done waiting\n");
 	return 0;

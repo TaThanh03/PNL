@@ -5,9 +5,11 @@ ifneq ($(KERNELRELEASE),)
 
 obj-m := kcpustat.o
 
+CFLAGS_kcpustat.o := -DDEBUG
+
 else
 	
-  KERNELDIR ?= /lib/modules/$(shell uname -r)/build
+  KERNELDIR ?= ~/workplace/PNL/linux-4.9.86/
   PWD := $(shell pwd)
 
 all :

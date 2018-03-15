@@ -11,7 +11,7 @@ ifneq ($(KERNELRELEASE),)
 
 else
 #il faut remplacer $(shell uname -r) par le chemin ver kernel
-  KERNELDIR ?= ~/workplace/PNL/linux-4.9.85/
+  KERNELDIR ?= ~/workplace/PNL/linux-4.9.86/
   PWD := $(shell pwd)
 
 all :
