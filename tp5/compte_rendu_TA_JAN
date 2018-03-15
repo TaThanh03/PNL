@@ -153,7 +153,7 @@ Task Addr               Pid   Parent [*] cpu State Thread             Command
 0xffff88003db15780      314      272  0    0   S  0xffff88003db16100  bash
 0xffff88003b6ea580      337        2  0    0   D  0xffff88003b6eaf00  my_hanging_fn
 
-//le résultat de monitor btp
+Monitor btp n'affiche rien.
 
 
 Question 6:

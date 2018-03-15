@@ -49,7 +49,7 @@ int save_stats(void)
 void print_stats(void)
 {
 	struct my_kcpustat *k, *first, *prev;
-	struct kernel_cpustat sum = {.cpustat = {0} };
+	struct kernel_cpustat sum = {.cpustat = {NR_STATS} };
 	int nr = 0, i;
 
 	first = list_first_entry(&my_head, struct my_kcpustat, list);
