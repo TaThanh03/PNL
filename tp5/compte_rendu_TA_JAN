@@ -101,13 +101,59 @@ make nconfig -> Kernel hacking -> Debug Lockups and Hangs -> Panic (Reboot On Hu
 
 Question 4:
 
-// copier le résultat de backtrace
+/le résultat de backtrace
+#0  kgdb_breakpoint () at kernel/debug/debug_core.c:1072
+#1  0xffffffff811e4f62 in kgdb_panic_event (
+    self=0xffffffff822771b0 <kgdb_panic_event_nb>, val=0, 
+    data=0xffffffff827c7bc0 <buf>) at kernel/debug/debug_core.c:850
+#2  0xffffffff8115fe5c in notifier_call_chain (
+    nl=0xffffffff822771b0 <kgdb_panic_event_nb>, val=0, 
+    v=0xffffffff827c7bc0 <buf>, nr_to_call=-1, 
+    nr_calls=0x0 <irq_stack_union>) at kernel/notifier.c:93
+#3  0xffffffff8115ff1a in __atomic_notifier_call_chain (
+    nr_calls=<optimized out>, nr_to_call=<optimized out>, 
+    v=<optimized out>, val=<optimized out>, nh=<optimized out>)
+    at kernel/notifier.c:183
+#4  atomic_notifier_call_chain (
+    nh=0xffffffff822771b0 <kgdb_panic_event_nb>, val=0, 
+    v=0xffffffff827c7bc0 <buf>) at kernel/notifier.c:193
+#5  0xffffffff81238522 in panic (
+    fmt=0xffffffff81ece926 "hung_task: blocked tasks")
+    at kernel/panic.c:213
+#6  0xffffffff811efc18 in check_hung_task (timeout=<optimized out>, 
+    t=<optimized out>) at kernel/hung_task.c:126
+#7  check_hung_uninterruptible_tasks (timeout=<optimized out>)
+    at kernel/hung_task.c:182
+#8  watchdog (dummy=0xffffffff822771b0 <kgdb_panic_event_nb>)
+    at kernel/hung_task.c:239
+#9  0xffffffff8115e7b9 in kthread (_create=0xffff88003d8f9440)
+    at kernel/kthread.c:211
+#10 0xffffffff81b42c37 in ret_from_fork ()
+    at arch/x86/entry/entry_64.S:374
+#11 0x0000000000000000 in ?? ()
 
 Question 5:
 
-// copier le résultat de monitor ps
+//le résultat de monitor ps
+Task Addr               Pid   Parent [*] cpu State Thread             Command
+0xffff88003d8a3200       15        2  1    0   R  0xffff88003d8a3b80 *khungtaskd
 
-// copier le résultat de monitor btp
+0xffff88003e378000        1        0  0    0   S  0xffff88003e378980  systemd
+0xffff88003d8a3200       15        2  1    0   R  0xffff88003d8a3b80 *khungtaskd
+0xffff88003d95d780       28        2  0    0   R  0xffff88003d95e100  kworker/0:1
+0xffff88003db20000      198        1  0    0   R  0xffff88003db20980  systemd-journal
+0xffff88003dbbcb00      208        1  0    0   S  0xffff88003dbbd480  systemd-udevd
+0xffff88003b6ebe80      258        1  0    0   S  0xffff88003b6ec800  systemd-logind
+0xffff88003b6e9900      260        1  0    0   S  0xffff88003b6ea280  dbus-daemon
+0xffff88003b6ecb00      261        1  0    0   S  0xffff88003b6ed480  login
+0xffff88003db13200      272        1  0    0   S  0xffff88003db13b80  login
+0xffff88003db11900      273        1  0    0   S  0xffff88003db12280  systemd
+0xffff88003b6ef080      284      273  0    0   S  0xffff88003b6efa00  (sd-pam)
+0xffff88003db14b00      300      261  0    0   S  0xffff88003db15480  bash
+0xffff88003db15780      314      272  0    0   S  0xffff88003db16100  bash
+0xffff88003b6ea580      337        2  0    0   D  0xffff88003b6eaf00  my_hanging_fn
+
+//le résultat de monitor btp
 
 
 Question 6:
