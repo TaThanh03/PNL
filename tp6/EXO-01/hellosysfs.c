@@ -1,67 +1,47 @@
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/kthread.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
+#include <linux/timer.h>
+#include <linux/kernel_stat.h>
+#include <linux/printk.h> 
+#include <linux/kobject.h> 
+#include <linux/sysfs.h> 
+#include <linux/init.h> 
+#include <linux/fs.h> 
+#include <linux/string.h> 
 
-MODULE_DESCRIPTION("A hellosysfs monitor");
-MODULE_AUTHOR("KLOS, TA");
+MODULE_DESCRIPTION("A hello kernel module");
+MODULE_AUTHOR("Maxime Lorrillere <maxime.lorrillere@lip6.fr>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1");
 
+static char buff_hello[7] ;
 static ssize_t hello_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-        return sprintf(buf, "%lu\n", hello);
+        return sprintf(buf, "Hello %s\n", buff_hello);
 }
-
-static const struct kobj_attribute attribute = __ATTR_RO(hello);
-
-static int __init hello_init(void)
+static ssize_t hello_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-        int res;
-
-        if ((res = sysfs_create_file(kernel_kobj, &attribute.attr)) < 0) {
-                printk(KERN_ERR "Failed to create sysfs entry (%d)\n", res);
-                return res;
-        }
-        pr_info("hellosysfs module loaded\n");
+	//strncpy(buff_hello, buf, 32);
+	snprintf(buff_hello, strlen(buff_hello), "%s", buf);
+	return count;
 }
-
-static void __exit hello_exit(void)
-{
-        sysfs_remove_file(kernel_kobj, &attribute.attr);
-        pr_info("hellosysfs module unloaded\n");
-}
-
-
-
-
-
-/*
-static int toto;
-static struct kobject *kobject;
-
-static ssize_t show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
-{
-        return sprintf(buf, "Hello sysfs!\n", toto);
-}
-
+static struct kobj_attribute hello_attribute = __ATTR_RW(hello);
 static int hellosysfs_init(void)
 {
-        kobject = kobject_create_and_add("hello", kernel_kobj); 
-        if(!kobject) 
-		return -ENOMEM;
-        static struct kobj_attribute attribute =__ATTR(toto, __ATTR_RO(hello), show,  NULL);
-        sysfs_create_file(kobject, attribute);
-        pr_info("hellosysfs module loaded\n");
+	pr_info("hellosysfs module loaded\n");
+	sysfs_create_file(kernel_kobj, &hello_attribute.attr); 
+	buff_hello[0] = 'b';
+	buff_hello[1] = 'l';
+	buff_hello[2] = 'a';
+	buff_hello[3] = 'b';
+	buff_hello[4] = 'l';
+	buff_hello[5] = 'a';
+	buff_hello[6] = 0;
+	return 0;
 }
+module_init(hellosysfs_init);
 
 static void hellosysfs_exit(void)
 {
-        kobject_put(kobject);
-        pr_info("hellosysfs module unloaded\n");
-}*/
-
-module_init(hellosysfs_init);
+	pr_info("hellosysfs module unloaded\n");
+	sysfs_remove_file(kernel_kobj, &hello_attribute.attr);
+}
 module_exit(hellosysfs_exit);
-

@@ -2,63 +2,95 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h> 
+#include "helloioctl.h"
 
-MODULE_DESCRIPTION("A hellosysfs monitor");
+MODULE_DESCRIPTION("A helloioctl monitor");
 MODULE_AUTHOR("KLOS, TA");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1");
 
-static ssize_t hello_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static int major;
+char my_string[32];
+
+ 
+static struct file_operations file_op =
 {
-        return sprintf(buf, "%lu\n", hello);
+ .owner = THIS_MODULE,
+ .read = etx_read,
+ .write = etx_write,
+ .open = etx_open,
+ .unlocked_ioctl = etx_ioctl,
+ .release = etx_release,
+};
+
+static int etx_open(struct inode *inode, struct file *file)
+{
+        printk(KERN_INFO "Device File Opened...!!!\n");
+        return 0;
 }
 
-static const struct kobj_attribute attribute = __ATTR_RO(hello);
-
-static int __init hello_init(void)
+static int etx_release(struct inode *inode, struct file *file)
 {
-        int res;
+        printk(KERN_INFO "Device File Closed...!!!\n");
+        return 0;
+}
 
-        if ((res = sysfs_create_file(kernel_kobj, &attribute.attr)) < 0) {
-                printk(KERN_ERR "Failed to create sysfs entry (%d)\n", res);
-                return res;
+static ssize_t etx_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+{
+        printk(KERN_INFO "Read Function\n");
+        return 0;
+}
+static ssize_t etx_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+{
+        printk(KERN_INFO "Write function\n");
+        return 0;
+}
+
+static long etx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	switch(cmd) {
+                case HELLO:
+        		printk(KERN_INFO "etx_ioctl read from device\n");
+                        copy_to_user((char*) arg, &my_string, sizeof(my_string));
+                        break;	
+                case WHO:
+        		printk(KERN_INFO "etx_ioctl write to device\n");
+                        copy_from_user(&my_string ,(char*) arg, sizeof(my_string));
+                        printk(KERN_INFO "my_string = %s\n", my_string);
+                        break;	
         }
-        pr_info("hellosysfs module loaded\n");
+        return -ENOTTY;
 }
 
-static void __exit hello_exit(void)
+static int __init helloioctl_init(void)
 {
-        sysfs_remove_file(kernel_kobj, &attribute.attr);
-        pr_info("hellosysfs module unloaded\n");
+        major = register_chrdev(0, "hello", &file_op);
+        pr_info("helloioctl module loaded, major =%d\n",major );
+	
+	my_string[0] = 'h';
+	my_string[1] = 'e';
+	my_string[2] = 'l';
+	my_string[3] = 'l';
+	my_string[4] = 'o';
+	my_string[5] = '_';
+	my_string[6] = 'i';
+	my_string[7] = 'o';
+	my_string[8] = 'c';
+	my_string[9] = 't';
+	my_string[10] = 'l';
+	my_string[11] = 0;
+
+
+        return 0;
 }
+module_init(helloioctl_init);
 
-
-
-
-
-/*
-static int toto;
-
-static ssize_t show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static void __exit helloioctl_exit(void)
 {
-        return sprintf("Hello sysfs!\n");
+        unregister_chrdev(major, "hello");
+        pr_info("helloioctl module unloaded\n");
 }
-
-static int hellosysfs_init(void)
-{
-        kobject = kobject_create_and_add("hello", kernel_kobj); 
-        if(!kobject) return -ENOMEM;
-        static struct kobj_attribute attribute =__ATTR(toto, __ATTR_RO, show,  NULL);
-        sysfs_create_file(kobject, attribute);
-        pr_info("hellosysfs module loaded\n");
-}
-
-static void hellosysfs_exit(void)
-{
-        kobject_put(kobject);
-        pr_info("hellosysfs module unloaded\n");
-}*/
-
-module_init(hellosysfs_init);
-module_exit(hellosysfs_exit);
+module_exit(helloioctl_exit);
 
