@@ -10,9 +10,117 @@ Question 1:
 =============================Ex3==================================
 
 Question 1:
-=============================Ex4==================================
+/*
+ * What is struct pid?
+ *
+ * A struct pid is the kernel's internal notion of a process identifier.
+ * It refers to individual tasks, process groups, and sessions.  While
+ * there are processes attached to it the struct pid lives in a hash
+ * table, so it and then the processes that it refers to can be found
+ * quickly from the numeric pid value.  The attached processes may be
+ * quickly accessed by following pointers from struct pid.
+ *
+ * Storing pid_t values in the kernel and referring to them later has a
+ * problem.  The process originally with that pid may have exited and the
+ * pid allocator wrapped, and another process could have come along
+ * and been assigned that pid.
+ *
+ * Referring to user space processes by holding a reference to struct
+ * task_struct has a problem.  When the user space process exits
+ * the now useless task_struct is still kept.  A task_struct plus a
+ * stack consumes around 10K of low kernel memory.  More precisely
+ * this is THREAD_SIZE + sizeof(struct task_struct).  By comparison
+ * a struct pid is about 64 bytes.
+ *
+ * Holding a reference to struct pid solves both of these problems.
+ * It is small so holding a reference does not consume a lot of
+ * resources, and since a new struct pid is allocated when the numeric pid
+ * value is reused (when pids wrap around) we don't mistakenly refer to new
+ * processes.
+ */
 
-Question 1:
+Question 2: task_struct
+ * @utime: time spent in user mode
+ * @stime: time spent in system mode
+
+Question 3:
+task_struct contient pid 
+=============================Ex4==================================
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/kthread.h>
+#include <linux/moduleparam.h>
+
+MODULE_DESCRIPTION("A process monitor");
+MODULE_AUTHOR("Jan Klos et TA Thanh");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("1");
+Question 1:=======================================================
+unsigned short target = 1;
+
+module_param(target, ushort, 0400);
+int monitor_pid(pid_t pid)
+{
+	struct pid *my_p = find_get_pid(pid);
+	if (!my_p){
+		pr_err("pid %hu not found\n", pid);
+		return -ESRCH;	
+	}
+	return 0;
+}
+
+static int monitor_init(void)
+{
+	int err = monitor_pid(target);
+	if (err)
+		return err;
+	pr_info("Monitoring module loaded\n");
+}
+module_init(monitor_init);
+
+static void monitor_exit(void)
+{
+	pr_info("Monitoring module unloaded\n");
+}
+module_exit(monitor_exit);
+Question 2:=======================================================
+unsigned short target = 1;
+module_param(target, ushort, 0400);
+
+struct task_monitor {
+	struct pid *pid;
+};
+struct task_monitor *my_tm;
+
+int monitor_pid(pid_t pid)
+{
+	struct pid *my_p = find_get_pid(pid);
+	if (!my_p){
+		pr_err("pid %hu not found\n", pid);
+		return -ESRCH;	
+	}
+	my_tm = kmalloc(sizeof(*my_tm), GFP_KERNEL); 
+	my_tm->pid = my_p;
+	return 0;
+}
+
+static int monitor_init(void)
+{
+	int err = monitor_pid(target);
+	if (err)
+		return err;
+	pr_info("Monitoring module loaded\n");
+}
+module_init(monitor_init);
+
+static void monitor_exit(void)
+{
+	put_pid(my_tm->pid);
+	kfree(my_tm);
+	pr_info("Monitoring module unloaded\n");
+}
+module_exit(monitor_exit);
+Question 3:=======================================================
 
 =============================Ex5==================================
 

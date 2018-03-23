@@ -4,7 +4,6 @@
 ifneq ($(KERNELRELEASE),)
 
 obj-m := kcpustat.o
-
 CFLAGS_kcpustat.o := -DDEBUG
 
 else
