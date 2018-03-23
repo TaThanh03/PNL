@@ -213,7 +213,7 @@ Module                  Size  modstruct     Used by
 kcpustat                2342  0xffffffffa00004c0    0  (Live) 0xffffffffa0000000 [ ]
 
 - Chargez les symboles de votre module (le fichier .o) en indiquant à KGDB l’adresse de chargement du module:
-add-symbol-file ../PNL-master/tp5/EXO-05/kcpustat.o 0xffffffffa0000000
+add-symbol-file ../PNL-master/tp5/EXO-05/kcpustat.o 	
 
 - Le résultat de backtrace est exploitable:
 (gdb) backtrace 

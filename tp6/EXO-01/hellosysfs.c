@@ -13,17 +13,21 @@ MODULE_AUTHOR("Maxime Lorrillere <maxime.lorrillere@lip6.fr>");
 MODULE_LICENSE("GPL");
 
 static char buff_hello[7] ;
+
 static ssize_t hello_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
         return sprintf(buf, "Hello %s\n", buff_hello);
 }
+
 static ssize_t hello_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	//strncpy(buff_hello, buf, 32);
 	snprintf(buff_hello, strlen(buff_hello), "%s", buf);
 	return count;
 }
+
 static struct kobj_attribute hello_attribute = __ATTR_RW(hello);
+
 static int hellosysfs_init(void)
 {
 	pr_info("hellosysfs module loaded\n");
