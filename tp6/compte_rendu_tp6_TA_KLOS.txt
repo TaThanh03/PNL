@@ -2,14 +2,32 @@
 
 Question 1: 
 
+Voir le code.
+
+Question 2:
+
+Voir le code.
 
 =============================Ex2==================================
 
-Question 1: 
+Question 1:
+
+Voir le code. 
+
+Question 2:
+
+Voir le code.
+
+Question 3:
+
+Voir le code.
 
 =============================Ex3==================================
 
 Question 1:
+
+La structure pid sert à rassambler tous les tasks avec la même valeur pid.
+
 /*
  * What is struct pid?
  *
@@ -39,13 +57,16 @@ Question 1:
  * processes.
  */
 
-Question 2: task_struct
- * @utime: time spent in user mode
- * @stime: time spent in system mode
+Question 2: 
+
+Les deux sont en nanosecondes.
 
 Question 3:
+
 task_struct contient pid 
+
 =============================Ex4==================================
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -55,72 +76,20 @@ MODULE_DESCRIPTION("A process monitor");
 MODULE_AUTHOR("Jan Klos et TA Thanh");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1");
-Question 1:=======================================================
-unsigned short target = 1;
 
-module_param(target, ushort, 0400);
-int monitor_pid(pid_t pid)
-{
-	struct pid *my_p = find_get_pid(pid);
-	if (!my_p){
-		pr_err("pid %hu not found\n", pid);
-		return -ESRCH;	
-	}
-	return 0;
-}
+Question 1:
 
-static int monitor_init(void)
-{
-	int err = monitor_pid(target);
-	if (err)
-		return err;
-	pr_info("Monitoring module loaded\n");
-}
-module_init(monitor_init);
+Voir le code.
 
-static void monitor_exit(void)
-{
-	pr_info("Monitoring module unloaded\n");
-}
-module_exit(monitor_exit);
-Question 2:=======================================================
-unsigned short target = 1;
-module_param(target, ushort, 0400);
+Question 2:
 
-struct task_monitor {
-	struct pid *pid;
-};
-struct task_monitor *my_tm;
+Voir le code.
+-À quel moment devez vous rendre la référence de la struct pid ?
+Dans la fonction d'exit du module.
 
-int monitor_pid(pid_t pid)
-{
-	struct pid *my_p = find_get_pid(pid);
-	if (!my_p){
-		pr_err("pid %hu not found\n", pid);
-		return -ESRCH;	
-	}
-	my_tm = kmalloc(sizeof(*my_tm), GFP_KERNEL); 
-	my_tm->pid = my_p;
-	return 0;
-}
+Question 3:
 
-static int monitor_init(void)
-{
-	int err = monitor_pid(target);
-	if (err)
-		return err;
-	pr_info("Monitoring module loaded\n");
-}
-module_init(monitor_init);
-
-static void monitor_exit(void)
-{
-	put_pid(my_tm->pid);
-	kfree(my_tm);
-	pr_info("Monitoring module unloaded\n");
-}
-module_exit(monitor_exit);
-Question 3:=======================================================
+Voir le code.
 
 =============================Ex5==================================
 
