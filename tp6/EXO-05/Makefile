@@ -3,8 +3,8 @@
 
 ifneq ($(KERNELRELEASE),)
 
-obj-m := taskmonitor.o
-CFLAGS_taskmonitor.o := -DDEBUG
+obj-m := taskmonitor_question1.o
+CFLAGS_taskmonitor_question1.o := -DDEBUG
 
 else
 
