@@ -1,1 +1,0 @@
-cmd_/home/ta/STUDY/PNL/tp4/EXO-01/update_sb.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/ta/STUDY/PNL/tp4/EXO-01/update_sb.ko /home/ta/STUDY/PNL/tp4/EXO-01/update_sb.o /home/ta/STUDY/PNL/tp4/EXO-01/update_sb.mod.o ;  true
