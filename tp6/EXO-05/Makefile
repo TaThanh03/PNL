@@ -3,8 +3,9 @@
 
 ifneq ($(KERNELRELEASE),)
 
-obj-m := taskmonitor_question1.o
-CFLAGS_taskmonitor_question1.o := -DDEBUG
+#EXTRA_CFLAGS=-I$(PWD)/inc
+obj-m := taskmonitor.o 
+CFLAGS_taskmonitor.o := -DDEBUG
 
 else
 
