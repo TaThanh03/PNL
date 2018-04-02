@@ -24,7 +24,6 @@ struct history *new_history(char *name)
 
 /**
   * last_commit - retourne l'adresse du dernier commit de l'historique.
-  *
   * @h: pointeur vers l'historique
   */
 struct commit *last_commit(struct history *h)

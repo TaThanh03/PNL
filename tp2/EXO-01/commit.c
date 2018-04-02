@@ -41,16 +41,16 @@ struct commit *new_commit(unsigned short major, unsigned long minor,
 static struct commit *insert_commit(struct commit *from, struct commit *new)
 {
 	/* TODO : Exercice 3 - Question 3 */
-  /*struct commit *next = from->next;*/
+	/*struct commit *next = from->next;*/
   if (from->next == NULL) {
-    new->next = NULL;
+		new->next = NULL;
   }
   else {
-      from->next->prev = new;
-      new->next = from->next;
-  }
-  new->prev = from;
-  from->next = new;
+		from->next->prev = new;
+		new->next = from->next;
+	}
+	new->prev = from;
+	from->next = new;
 	return new;
 }
 
