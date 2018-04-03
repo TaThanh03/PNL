@@ -3,7 +3,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-
+#include <linux/list.h>
 MODULE_DESCRIPTION("A process monitor");
 MODULE_AUTHOR("Maxime Lorrillere <maxime.lorrillere@lip6.fr>");
 MODULE_LICENSE("GPL");
@@ -14,23 +14,19 @@ unsigned frequency = 1; /* sampling frequency */
 module_param(target, ushort, 0400);
 module_param(frequency, uint, 0600);
 
-
+struct task_sample {
+	cputime_t utime;
+	cputime_t stime;
+	struct list_head list;
+};
+struct task_sample ts_head;
+struct mutex mutex_list;
 struct task_monitor {
 	struct pid *pid;
 };
 struct task_monitor *tm;
-
 //thread qui surveille le target
 struct task_struct *monitor_thread;
-
-struct task_sample {
-	struct list_head list;
-	cputime_t utime;
-	cputime_t stime;
-};
-struct task_sample ts_head;
-
-struct mutex mutex_list;
 
 static char user_command[32];
 static int sample_list_cpt = 0;
@@ -93,9 +89,8 @@ int monitor_fn(void *data)
 {
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout(max(10*HZ/frequency, 1U)))
+		if (schedule_timeout(max(HZ/frequency, 1U)))
 			return -EINTR;
-		//print_sample(tm);
 		save_sample();
 	}
 	return 0;
@@ -161,7 +156,7 @@ static struct kobj_attribute taskmonitor_attribute = __ATTR_RW(taskmonitor);
 static int monitor_init(void)
 {
 	//init list head
-	LIST_HEAD_INIT(&ts_head->list);	
+	INIT_LIST_HEAD(&ts_head.list);	
 	//mutex
 	mutex_init(&mutex_list);
 	//sysfs
@@ -176,13 +171,17 @@ module_init(monitor_init);
 
 static void monitor_exit(void)
 {
-	struct task_sample *ts_index;
-	list_for_each_entry(ts_index, &ts_head->list, list) {
+	struct task_sample *ts_index, *tmp;
+	list_for_each_entry(ts_index, &ts_head.list, list) {
         //access the member from ts_index
-        printk(KERN_INFO "usr %lu sys %lu", ts_index->utime, ts_index->stime);
+        pr_info(KERN_INFO "usr %lu sys %lu", ts_index->utime, ts_index->stime);
   }
-  printk(KERN_INFO "n");
-
+	pr_info(KERN_INFO "deleting the list\n");
+	list_for_each_entry_safe(ts_index, tmp, &ts_head.list, list){
+		printk(KERN_INFO "freeing node usr %lu sys %lu\n", ts_index->utime, ts_index->stime);
+		list_del(&ts_index->list);
+		kfree(ts_index);
+	}
 	//sysfs
 	sysfs_remove_file(kernel_kobj, &taskmonitor_attribute.attr);
 	pr_info("Monitoring module unloaded\n");
