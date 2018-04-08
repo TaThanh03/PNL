@@ -139,8 +139,7 @@ int monitor_pid(pid_t pid)
 }
 
 
-static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *attr,
-			char *buf)
+static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct task_sample *pos;
 	int count=0;
