@@ -23,16 +23,6 @@ struct task_sample {
 	cputime_t stime;
 };
 static char user_command[32];
-int compare_str(char *str1, char *str2)
-{
-	while (*str1 && *str1 == *str2){
-		pr_info("%c:%c\n", *str1, *str2);
-		str1++;
-		str2++;
-	}
-	pr_info("%d\n", *str1 - *str2);
-	return *str1 - *str2;
-}
 
 bool get_sample(struct task_monitor *tm, struct task_sample *sample)
 {
@@ -110,12 +100,12 @@ static ssize_t taskmonitor_store(struct kobject *kobj, struct kobj_attribute *at
 {
 	int err;
 	snprintf(user_command, sizeof(user_command), "%.*s", (int)min(count, sizeof(user_command)-1), buf);
-	if (compare_str("stop",user_command) == 0){
+	if (strcmp("stop",user_command) == 0){
 		if (monitor_thread)
 			kthread_stop(monitor_thread);
 		put_pid(tm->pid);
 		kfree(tm);
-	} else if (!compare_str("start",user_command)){
+	} else if (!strcmp("start",user_command)){
 		err = monitor_pid(target);
 		monitor_thread = kthread_run(monitor_fn, NULL, "monitor_fn");
 		if (IS_ERR(monitor_thread)) {

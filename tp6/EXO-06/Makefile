@@ -3,15 +3,9 @@
 
 ifneq ($(KERNELRELEASE),)
 
-EXTRA_CFLAGS=-I$(PWD)/inc
-
+#EXTRA_CFLAGS=-I$(PWD)/inc
 obj-m := taskmonitor.o 
 CFLAGS_taskmonitor.o := -DDEBUG
-
-#
-#obj-m := taskmonitormodule.o 
-#obj-taskmonitor := compare_str.o taskmonitor.o
-#CFLAGS_taskmonitor.o := -DDEBUG
 
 else
 

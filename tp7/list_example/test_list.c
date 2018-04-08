@@ -32,7 +32,6 @@ int init_module() {
         /* add the new node to mylist */
         list_add_tail(&(aNewPerson->list), &(personList.list));
     }
-
     printk(KERN_INFO "traversing the list using list_for_each_entry()n");
     list_for_each_entry(aPerson, &personList.list, list) {
         //access the member from aPerson

@@ -1,4 +1,6 @@
 #include "compare.h"
+
+
 int compare_str(char *str1, char *str2)
 {
 	while (*str1 && *str2 == *str2){

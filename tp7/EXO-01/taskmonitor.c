@@ -14,31 +14,22 @@ unsigned frequency = 1; /* sampling frequency */
 module_param(target, ushort, 0400);
 module_param(frequency, uint, 0600);
 
+struct mutex mutex_list;
 struct task_sample {
 	cputime_t utime;
 	cputime_t stime;
-	struct list_head list;
+	struct list_head ts_item;
 };
-struct task_sample ts_head;
-struct mutex mutex_list;
 struct task_monitor {
 	struct pid *pid;
+	struct list_head ts_head;
+	int ts_cpt;
 };
 struct task_monitor *tm;
 //thread qui surveille le target
 struct task_struct *monitor_thread;
 
 static char user_command[32];
-static int sample_list_cpt = 0;
-
-int compare_str(char *str1, char *str2)
-{
-	while (*str1 && *str1 == *str2){
-		str1++;
-		str2++;
-	}
-	return *str1 - *str2;
-}
 
 bool get_sample(struct task_monitor *tm, struct task_sample *sample)
 {
@@ -75,13 +66,23 @@ void save_sample(void)
 {
 	//allouer une nouvelle struct task_sample
 	struct task_sample *ts_new;
-	ts_new = kmalloc(sizeof(*ts_new), GFP_KERNEL);
+	ts_new = kmalloc(sizeof(struct task_sample), GFP_KERNEL);
 	//l’initialiser à l’aide de la fonction get_sample
+	pid_t pid = pid_nr(tm->pid);
+	bool alive;
 	get_sample(tm, ts_new);
+	alive = get_sample(tm, ts_new);
+	if (!alive)
+		pr_err("%hd is dead\n",	pid);
+	else
+		pr_info("%hd usr %lu sys %lu\n", pid, ts_new->utime, ts_new->stime);
+	tm->ts_cpt++;
 	//l’ajouter dans la liste du struct task_monitor
-	INIT_LIST_HEAD(&ts_new->list);	
+	INIT_LIST_HEAD(&ts_new->ts_item);	
 	mutex_lock(&mutex_list);
-	list_add_tail(&(ts_new->list), &(ts_head.list));
+  	//pr_info("%p    %p\n", ts_new->ts_item, tm->ts_head);
+  	//pr_info("%p    %p\n", &(ts_new->ts_item), &(tm->ts_head));
+	list_add(&(ts_new->ts_item), &(tm->ts_head));
 	mutex_unlock(&mutex_list);
 }
 
@@ -89,7 +90,8 @@ int monitor_fn(void *data)
 {
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout(max(HZ/frequency, 1U)))
+		if (schedule_timeout(max(3*HZ/frequency, 1U)))
+		//if (schedule_timeout(1U)) //pour shrinker
 			return -EINTR;
 		save_sample();
 	}
@@ -104,6 +106,8 @@ int monitor_pid(pid_t pid)
 		return -ESRCH;
 	}
 	tm = kmalloc(sizeof(*tm), GFP_KERNEL);
+	INIT_LIST_HEAD(&tm->ts_head);	
+	tm->ts_cpt = 0;
 	tm->pid = p;
 	return 0;
 }
@@ -130,12 +134,12 @@ static ssize_t taskmonitor_store(struct kobject *kobj, struct kobj_attribute *at
 {
 	int err;
 	snprintf(user_command, sizeof(user_command), "%.*s", (int)min(count, sizeof(user_command)-1), buf);
-	if (compare_str("stop", user_command) == 0){
+	if (strcmp("stop", user_command) == 0){
 		if (monitor_thread)
 			kthread_stop(monitor_thread);
-		put_pid(tm->pid);
-		kfree(tm);
-	} else if (!compare_str("start", user_command)){
+		//put_pid(tm->pid);
+		//kfree(tm);
+	} else if (!strcmp("start", user_command)){
 		err = monitor_pid(target);
 		monitor_thread = kthread_run(monitor_fn, NULL, "monitor_fn");
 		if (IS_ERR(monitor_thread)) {
@@ -155,8 +159,6 @@ static struct kobj_attribute taskmonitor_attribute = __ATTR_RW(taskmonitor);
 
 static int monitor_init(void)
 {
-	//init list head
-	INIT_LIST_HEAD(&ts_head.list);	
 	//mutex
 	mutex_init(&mutex_list);
 	//sysfs
@@ -172,18 +174,25 @@ module_init(monitor_init);
 static void monitor_exit(void)
 {
 	struct task_sample *ts_index, *tmp;
-	list_for_each_entry(ts_index, &ts_head.list, list) {
-        //access the member from ts_index
-        pr_info(KERN_INFO "usr %lu sys %lu", ts_index->utime, ts_index->stime);
-  }
-	pr_info(KERN_INFO "deleting the list\n");
-	list_for_each_entry_safe(ts_index, tmp, &ts_head.list, list){
-		printk(KERN_INFO "freeing node usr %lu sys %lu\n", ts_index->utime, ts_index->stime);
-		list_del(&ts_index->list);
-		kfree(ts_index);
+	pr_info("cpt=%d\n", tm->ts_cpt);
+	list_for_each_entry(ts_index, &tm->ts_head, ts_item) {
+		//access the member from ts_index
+		pr_info(KERN_INFO "usr %lu sys %lu \n", ts_index->utime, ts_index->stime);
 	}
+	pr_info(KERN_INFO "deleting the list\n");
+	list_for_each_entry_safe(ts_index, tmp, &tm->ts_head, ts_item){
+		printk(KERN_INFO "freeing node usr %lu sys %lu\n", ts_index->utime, ts_index->stime);
+		list_del(&ts_index->ts_item);
+		kfree(&ts_index->ts_item);
+	}
+	pr_info(KERN_INFO "remove sysfs\n");
 	//sysfs
 	sysfs_remove_file(kernel_kobj, &taskmonitor_attribute.attr);
+	pr_info(KERN_INFO "free thread monitor\n");
+	if (monitor_thread)
+		kthread_stop(monitor_thread);   
+	put_pid(tm->pid);
+	kfree(tm);
 	pr_info("Monitoring module unloaded\n");
 }
 module_exit(monitor_exit);

@@ -14,7 +14,6 @@ MODULE_VERSION("1");
 static int major;
 char my_string[32];
 
- 
 static struct file_operations file_op =
 {
  .owner = THIS_MODULE,
