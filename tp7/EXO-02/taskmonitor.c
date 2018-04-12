@@ -124,7 +124,7 @@ static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *att
 	pr_info("line total=%d\n", tm->ts_cpt);
 	list_for_each_entry(ts_index, &tm->ts_head, ts_item) {
 		//access the member from ts_index
-		taille = sprintf(buf_show, "%d usr %lu sys %lu \n", pid, ts_index->utime, ts_index->stime);
+		taille = sprintf(buf_show, "%d usr %lu sys %lu \n \n", pid, ts_index->utime, ts_index->stime);
 		if((count + taille) <= PAGE_SIZE){
 			scnprintf(buf + count, taille, "%s", buf_show);	
 			count += taille;

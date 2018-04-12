@@ -117,7 +117,7 @@ static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *att
 	struct task_sample *ts_index;
 	pid_t pid = pid_nr(tm->pid);
 	static char *buf_show;
-	buf_show=kmalloc(PAGE_SIZE,GFP_KERNEL);
+	buf_show = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	int count = 0;
 	int taille = 0;
 	mutex_lock(&mutex_list);
@@ -129,6 +129,8 @@ static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *att
 			scnprintf(buf + count, taille, "%s", buf_show);	
 			count += taille;
 		}
+		else 
+			break;
 	}
 	mutex_unlock(&mutex_list);
 	return count;
