@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/shrinker.h>
 MODULE_DESCRIPTION("A process monitor");
 MODULE_AUTHOR("Maxime Lorrillere <maxime.lorrillere@lip6.fr>");
 MODULE_LICENSE("GPL");
@@ -28,6 +29,8 @@ struct task_monitor {
 struct task_monitor *tm;
 //thread qui surveille le target
 struct task_struct *monitor_thread;
+//SLAB
+static struct kmem_cache *kmem_cache_object;
 
 static char user_command[32];
 
@@ -81,7 +84,7 @@ void save_sample(void)
 		mutex_lock(&mutex_list);
   	list_add(&(ts_new->ts_item), &(tm->ts_head));
 		tm->ts_cpt++;
-		pr_info("%hd usr %lu sys %lu\n", pid, ts_new->utime, ts_new->stime);
+		//pr_info("%hd usr %lu sys %lu\n", pid, ts_new->utime, ts_new->stime);
 		mutex_unlock(&mutex_list);
 	}
 }
@@ -90,8 +93,8 @@ int monitor_fn(void *data)
 {
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout(max(3*HZ/frequency, 1U)))
-		//if (schedule_timeout(1U)) //pour shrinker
+		//if (schedule_timeout(max(1*HZ/frequency, 1U)))
+		if (schedule_timeout(1U)) //pour shrinker
 			return -EINTR;
 		save_sample();
 	}
@@ -121,7 +124,6 @@ static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *att
 	int count = 0;
 	int taille = 0;
 	mutex_lock(&mutex_list);
-	pr_info("line total=%d\n", tm->ts_cpt);
 	list_for_each_entry(ts_index, &tm->ts_head, ts_item) {
 		//access the member from ts_index
 		taille = sprintf(buf_show, "%d usr %lu sys %lu \n \n", pid, ts_index->utime, ts_index->stime);
@@ -130,6 +132,7 @@ static ssize_t taskmonitor_show(struct kobject *kobj, struct kobj_attribute *att
 			count += taille;
 		}
 	}
+	pr_info("line total=%d\n", tm->ts_cpt);
 	mutex_unlock(&mutex_list);
 	return count;
 
@@ -161,7 +164,50 @@ abort_store:
 	return err;
 }
 static struct kobj_attribute taskmonitor_attribute = __ATTR_RW(taskmonitor);
-////////////////////////////////////////////////////////////////////
+//shrinker/////////////////////////////////////////////////////////////
+/*
+static unsigned long count_objects(struct shrinker *sh, 
+																	 struct shrink_control *sc)
+{
+	unsigned long count = 0;
+	count = tm->ts_cpt;
+	sc->nr_to_scan = tm->ts_cpt;
+	return count;
+}
+static unsigned long scan_objects(struct shrinker *sh,
+				      										struct shrink_control *sc)
+{
+	struct task_sample *pos;
+	struct task_sample *tmp;
+	unsigned long count=0;
+	mutex_lock(&mutex_list);
+	if(sc->nr_to_scan==0)
+		return 0;
+	else{
+		list_for_each_entry_safe(pos,tmp,&tm->ts_head,ts_item){
+		//mutex_lock(&mutex_list);
+			if(sc->nr_to_scan > 0){
+				list_del(&pos->ts_item);
+				kfree(&pos->ts_item);
+				tm->ts_cpt--;
+				sc->nr_to_scan--;
+				count++;
+			}
+			else
+				break;
+		//mutex_unlock(&mutex_list);
+		}
+	}
+	mutex_unlock(&mutex_list);
+	return count;
+}
+static struct shrinker sh ={
+	.count_objects = &count_objects,
+	.scan_objects = &scan_objects,
+	.seeks = DEFAULT_SEEKS,
+};
+*/
+///////////////////////////////////////////////////////////////////////
 static int monitor_init(void)
 {
 	struct task_sample *ts_index, *tmp;
@@ -182,8 +228,23 @@ static int monitor_init(void)
 	if (err)
 		goto sysfs_error;
 	pr_info("sysfs loaded\n");
+	//SLAB
+	kmem_cache_object = KMEM_CACHE(task_sample, 0);
+
+
+
+	//shrinker
+	/*
+	err = register_shrinker(&sh);
+	if (err<0)
+		goto shrinker_error;
+	pr_info("shrinker loaded\n");
+	*/	
 	pr_info("Monitoring module loaded(everything is OK)\n");
 	return 0;
+
+//shrinker_error:
+	//sysfs_remove_file(kernel_kobj, &taskmonitor_attribute.attr);
 sysfs_error:
 	if (monitor_thread)
 		kthread_stop(monitor_thread); 
@@ -220,6 +281,8 @@ static void monitor_exit(void)
 	//remove sysfs
 	sysfs_remove_file(kernel_kobj, &taskmonitor_attribute.attr);
 	pr_info(KERN_INFO "sysfs removed\n");
+	//unregister shrinker
+	//unregister_shrinker(&sh);
 	//destroy mutex	
 	mutex_destroy(&mutex_list);
 	pr_info(KERN_INFO "mutex destroyed\n");

@@ -191,8 +191,8 @@ static unsigned long count_objects(struct shrinker* sh,struct shrink_control* sc
 
 static unsigned long scan_objects(struct shrinker* sh,struct shrink_control* sc){
 	struct task_sample *pos;
+	struct task_sample *tmp;
 	unsigned long count=0;
-	struct task_sample* tmp;
 	mutex_lock(&tm->m);
 	pr_info("scan_obj");
 	if(sc->nr_to_scan==0)return 0;
@@ -204,12 +204,14 @@ static unsigned long scan_objects(struct shrinker* sh,struct shrink_control* sc)
 				kfree(&pos->list);
 				tm->compteur--;
 				sc->nr_to_scan--;
+				count++;
 			}
 			else
 				break;
 		//mutex_unlock(&pos->m);
 		}
 	}
+	pr_info("deleted %ld\n", count);
 	mutex_unlock(&tm->m);
 	return count;
 }
