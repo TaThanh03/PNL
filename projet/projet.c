@@ -5,6 +5,7 @@
 #include <linux/uaccess.h> 
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
+#include <linux/init.h>
 
 #include "pnlfs.h"
 
@@ -14,30 +15,38 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1");
 
 //TODO Create a device ?(note in question 3)
+/*================================================================*/
+static inline struct pnlfs_inode_info *PNLFS_I(struct inode *inode);
 
+static struct inode *pnlfs_alloc_inode(struct super_block *sb);
+static void pnlfs_i_callback(struct rcu_head *head);
+static void pnl_destroy_inode(struct inode *inode);
+static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino);
+const struct inode_operations pnlfs_inops;
+const struct file_operations pnlfs_operations;
 
-static int major;
+static struct dentry *pnlfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data);
+static void kill_pnlfs_super(struct super_block *s);
+
+static int pnlfs_fill_super(struct super_block *sb, void *d, int silent);
+static void pnlfs_put_super(struct super_block *sb);
+
 static struct kmem_cache *pnl_inode_cachep;
 
-static void pnl_put_super(struct super_block *sb);
-
-static struct inode *pnl_alloc_inode(struct super_block *sb)
-{
-	struct pnlfs_inode_info *pnl_inode;
-	pnl_inode = kmem_cache_alloc(pnl_inode_cachep, GFP_KERNEL);
-	if (!pnl_inode)
-		return NULL;
-	inode_init_once(&pnl_inode->vfs_inode);
-
-	return &i->vfs_inode;
-}
-
+/*================================================================*/
 static inline struct pnlfs_inode_info *PNLFS_I(struct inode *inode)
 {
 	return container_of(inode, struct pnlfs_inode_info, vfs_inode);
 }
 
-static void pnl_i_callback(struct rcu_head *head)
+static struct inode *pnlfs_alloc_inode(struct super_block *sb)
+{
+	struct pnlfs_inode_info *i;
+	i = kmem_cache_alloc(pnl_inode_cachep, GFP_KERNEL);
+	return i ? &i->vfs_inode : NULL;
+}
+
+static void pnlfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(pnl_inode_cachep, PNLFS_I(inode));
@@ -45,29 +54,69 @@ static void pnl_i_callback(struct rcu_head *head)
 
 static void pnl_destroy_inode(struct inode *inode)
 {
-	call_rcu(&inode->i_rcu, pnl_i_callback);
+	call_rcu(&inode->i_rcu, pnlfs_i_callback);
 }
 
 static const struct super_operations pnlfs_sops = {
-	.put_super	= pnl_put_super,	
-	.alloc_inode	= pnl_alloc_inode,
+	.put_super	= pnlfs_put_super,	
+	.alloc_inode	= pnlfs_alloc_inode,
 	.destroy_inode	= pnl_destroy_inode,
 };
 
-static void pnl_put_super(struct super_block *sb)
-{
-	//défaire ce que la fonction pnl_fill_super() a fait
-	kfree(sb->s_fs_info);
-	sb->s_fs_info = NULL;
-}
 
-static int pnl_fill_super(struct super_block *sb, void *d, int silent);
+
+struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
+{
+	struct inode *inode;
+	struct pnlfs_inode_info *pnli;
+	struct pnlfs_inode *raw_inode;
+	struct buffer_head * bh;
+	
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) inode %lu\n", ino);
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	//If the inode is in cache
+	if (!(inode->i_state & I_NEW)) 
+		return inode;
+	//If the inode is not in cache
+	pnli = PNLFS_I(inode); 
+	//Lire cette inode sur le disque
+	/*TODO Do we have to convert from vfs's inode number to pnlfs's inode number ?*/
+	bh = sb_bread(sb, inode->i_ino);
+	if (!bh) {
+		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) unable to read inode %lu\n", inode->i_ino);
+		goto bad_inode;
+	}
+	raw_inode = (pnlfs_inode *) bh->b_data;
+	//Initialiser les champs
+	inode->i_mode = (umode_t) le32_to_cpu(sb, raw_inode->mode);
+	inode->i_op = &pnlfs_inops;
+	inode->i_fop = &pnlfs_operations;
+	inode->i_sb = &  ?????????????;
+	inode->i_ino =   ?????????????;
+	inode->i_size =   ?????????????;
+	inode->i_blocks =   ?????????????;
+
+
+	inode->i_atime = CURRENT_TIME;
+	inode->i_mtime = CURRENT_TIME;  
+	inode->i_ctime = CURRENT_TIME;
+
+	unlock_new_inode(inode);
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) new inode ok!\n");
+	return inode;
+bad_inode:
+	iget_failed(inode);
+	return ERR_PTR(-EIO);
+	
+}
 
 static struct dentry *pnlfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_mount\n");
-	return mount_bdev(fs_type, flags, dev_name, data, pnl_fill_super);
+	return mount_bdev(fs_type, flags, dev_name, data, pnlfs_fill_super);
 }
 
 static void kill_pnlfs_super(struct super_block *s)
@@ -84,8 +133,7 @@ static struct file_system_type pnlfs_type = {
 };
 MODULE_ALIAS_FS("pnl_VFS");
 
-
-static int pnl_fill_super(struct super_block *sb, void *d, int silent)
+static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 {
 	//struct pnlfs_superblock *sb_
 	struct pnlfs_sb_info *pnlsb;
@@ -121,6 +169,18 @@ error:
 	return ret;
 }
 
+static void pnlfs_put_super(struct super_block *sb)
+{	//défaire ce que la fonction pnlfs_fill_super() a fait
+	kfree(sb->s_fs_info);
+	sb->s_fs_info = NULL;
+}
+
+static void pnlfs_init_once(void *p)
+{
+	struct pnlfs_inode_info *i = p;
+	inode_init_once(&i->vfs_inode);
+}
+
 static int pnlfs_init(void)
 {
 	int err;
@@ -128,16 +188,12 @@ static int pnlfs_init(void)
 	if (err < 0)
 		goto error_register_filesystem;
 
-	pnl_inode_cachep = 
-		kmem_cache_create("pnl_inode_cache", 
-											sizeof(struct pnl_inode_info), 
-											0,
+	pnl_inode_cachep = kmem_cache_create("pnl_inode_cache", 
+											sizeof(struct pnlfs_inode_info), 0,
 			    						SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-			    						init_once);
+			    						pnlfs_init_once);
 	if (pnl_inode_cachep == NULL)
 		goto error_kmem_cache_create;
-
-
 
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) module loaded\n");
 	return 0;
