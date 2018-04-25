@@ -115,7 +115,7 @@ bad_inode:
 static struct dentry *pnlfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_mount\n");
+        pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_mount\n");
 	return mount_bdev(fs_type, flags, dev_name, data, pnlfs_fill_super);
 }
 
@@ -126,10 +126,10 @@ static void kill_pnlfs_super(struct super_block *s)
 }
 
 static struct file_system_type pnlfs_type = {
-	    .name			= "pnl_VFS",
-	    .owner 		= THIS_MODULE,
-			.mount		= pnlfs_mount,
-			.kill_sb	= kill_pnlfs_super,
+        .name= "pnl_VFS",
+        .owner 		= THIS_MODULE,
+        .mount		= pnlfs_mount,
+        .kill_sb	= kill_pnlfs_super,
 };
 MODULE_ALIAS_FS("pnl_VFS");
 
