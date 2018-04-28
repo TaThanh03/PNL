@@ -177,9 +177,12 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	}
 	return 0;
 error:
-	sb->s_fs_info = NULL;
-	kfree(pnlsb_info);
-	return ret;
+        sb->s_fs_info = NULL;
+        if(pnlsb_info)
+                kfree(pnlsb_info);
+        if(pnlsb)
+                kfree(pnlsb);
+        return ret;
 }
 
 static void pnlfs_put_super(struct super_block *sb)
@@ -202,9 +205,9 @@ static int pnlfs_init(void)
 		goto error_register_filesystem;
 
 	pnl_inode_cachep = kmem_cache_create("pnl_inode_cache", 
-											sizeof(struct pnlfs_inode_info), 0,
-			    						SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-			    						pnlfs_init_once);
+                                                sizeof(struct pnlfs_inode_info), 0,
+                                                SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
+                                                pnlfs_init_once);
 	if (pnl_inode_cachep == NULL)
 		goto error_kmem_cache_create;
 
