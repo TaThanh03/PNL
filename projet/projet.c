@@ -255,10 +255,12 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	}
 	return 0;
 error:
-	sb->s_fs_info = NULL;
-	kfree(pnlsb_info);
-	kfree(pnlsb);
-	return ret;
+        sb->s_fs_info = NULL;
+        if(pnlsb_info)
+                kfree(pnlsb_info);
+        if(pnlsb)
+                kfree(pnlsb);
+        return ret;
 }
 
 /*
