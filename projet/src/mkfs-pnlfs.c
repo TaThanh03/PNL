@@ -124,7 +124,16 @@ static struct pnlfs_superblock *write_superblock(int fd, struct stat *fstats)
 	       sb->magic, sb->nr_blocks, sb->nr_inodes, sb->nr_istore_blocks,
 	       sb->nr_ifree_blocks, sb->nr_bfree_blocks, sb->nr_free_inodes,
 	       sb->nr_free_blocks);
-
+/*
+Superblock: (4096)
+	magic=0x434f5746
+	nr_blocks=7680
+	nr_inodes=7680 (istore=30 blocks)
+	nr_ifree_blocks=1
+	nr_bfree_blocks=1
+	nr_free_inodes=7678
+	nr_free_blocks=7644
+*/
 	return sb;
 }
 
