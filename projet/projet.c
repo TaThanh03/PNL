@@ -145,16 +145,16 @@ static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 	}
 	raw_inode = (struct pnlfs_inode *) bh->b_data;
 	//Initialiser les champs
-	inode->i_mode = (umode_t) le32_to_cpu(raw_inode->mode);
-	inode->i_op = &pnlfs_inops;
-	inode->i_fop = &pnlfs_operations;
-	//inode->i_sb = &  ?????????????;
-	//inode->i_ino =   ?????????????;
-	//inode->i_size =   ?????????????;
-	//inode->i_blocks =   ?????????????;
-	inode->i_atime = CURRENT_TIME;
-	inode->i_mtime = CURRENT_TIME;  
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_mode   = (umode_t) le32_to_cpu(raw_inode->mode);
+	inode->i_op     = &pnlfs_inops;
+	inode->i_fop    = &pnlfs_operations;
+	inode->i_sb     = sb;
+	inode->i_ino    = ino;
+	inode->i_size   = (loff_t) le32_to_cpu(raw_inode->filesize);
+	inode->i_blocks = (blkcnt_t) le32_to_cpu(raw_inode->nr_used_blocks); 
+	inode->i_atime  = CURRENT_TIME;
+	inode->i_mtime  = CURRENT_TIME;  
+	inode->i_ctime  = CURRENT_TIME;
 
 	unlock_new_inode(inode);
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) new inode ok!\n");
@@ -286,10 +286,10 @@ static void kill_pnlfs_super(struct super_block *s)
 }
 
 static struct file_system_type pnlfs_type = {
-	    .name			= "pnl_VFS",
-	    .owner 		= THIS_MODULE,
-			.mount		= pnlfs_mount,
-			.kill_sb	= kill_pnlfs_super,
+	.name	 = "pnl_VFS",
+	.owner 	 = THIS_MODULE,
+	.mount	 = pnlfs_mount,
+	.kill_sb = kill_pnlfs_super,
 };
 MODULE_ALIAS_FS("pnl_VFS");
 
