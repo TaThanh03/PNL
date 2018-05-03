@@ -119,7 +119,6 @@ static const struct inode_operations pnlfs_inops = {
 	.lookup = pnlfs_lookup,
 };
 
-
 static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct inode *inode;
