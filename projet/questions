@@ -1,9 +1,3 @@
 1. the role struct pnlfs_sb_info in fill_super
 
-In general, data pointed to by the s_fs_info field is information from the disk duplicated in memory for
-reasons of efficiency. Each disk-based filesystem needs to access and update its allocation bitmaps in order to
-allocate or release disk blocks. The VFS allows these filesystems to act directly on the s_fs_info field of
-the superblock in memory without accessing the disk.
-This approach leads to a new problem, however: the VFS superblock might end up no longer synchronized
-with the corresponding superblock on disk. It is thus necessary to introduce an s_dirt flag, which specifies
-whether the superblock is dirtythat is, whether the data on the disk must be updated.
+

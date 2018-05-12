@@ -14,6 +14,7 @@ MODULE_AUTHOR("Thanh TA et Jan KLOS");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1");
 
+//TODO Create a device ?(note in question 3)
 /*================================================================*/
 static inline struct pnlfs_inode_info *PNLFS_I(struct inode *inode);
 
@@ -42,14 +43,8 @@ static inline struct pnlfs_inode_info *PNLFS_I(struct inode *inode)
 
 static struct inode *pnlfs_alloc_inode(struct super_block *sb)
 {
-	//Le constructeur doit allouer une structure struct pnlfs_inode_info
 	struct pnlfs_inode_info *i;
 	i = kmem_cache_alloc(pnl_inode_cachep, GFP_KERNEL);
-	//initialiser la struct inode qu’elle embarque avec la fonction inode_init_once() 
-	inode_init_once(&i->vfs_inode);
-	if (i)
-		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) inode allocated\n");
-	//renvoyer l’adresse de cette struct inode	
 	return i ? &i->vfs_inode : NULL;
 }
 
@@ -62,14 +57,12 @@ static void pnlfs_i_callback(struct rcu_head *head)
 static void pnl_destroy_inode(struct inode *inode)
 {
 	call_rcu(&inode->i_rcu, pnlfs_i_callback);
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) inode destroyed\n");
 }
 
 static void pnlfs_put_super(struct super_block *sb)
 {	//défaire ce que la fonction pnlfs_fill_super() a fait
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
-	//TODO mis à jour sur disque ?
 }
 
 static const struct super_operations pnlfs_sops = {
@@ -105,7 +98,7 @@ static struct dentry *pnlfs_lookup(struct inode *dir, struct dentry *dentry, uns
   ino = -1;
   inode = NULL;
   name = dentry->d_name.name;
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_lookup\n"); 
+
   switch (dir->i_ino) {
   	case 0: //the root directory
     	if (strcmp(name,"foo")==0) ino=1;
@@ -133,6 +126,7 @@ static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 	struct pnlfs_inode_info *pnli;
 	struct pnlfs_inode *raw_inode;
 	struct buffer_head * bh;
+	
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) inode %lu\n", ino);
 	inode = iget_locked(sb, ino);
 	if (!inode)
@@ -143,49 +137,27 @@ static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 	//If the inode is not in cache
 	pnli = PNLFS_I(inode); 
 	//Lire cette inode sur le disque
-	//TODO Do we have to convert from vfs's inode number to pnlfs's inode number ?
+	/*TODO Do we have to convert from vfs's inode number to pnlfs's inode number ?*/
 	bh = sb_bread(sb, inode->i_ino);
 	if (!bh) {
-		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read inode %lu\n", inode->i_ino);
+		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) unable to read inode %lu\n", inode->i_ino);
 		goto bad_inode;
 	}
 	raw_inode = (struct pnlfs_inode *) bh->b_data;
 	//Initialiser les champs
-
-/*
-lecture depuis le disque leX_to_cpu() 
-écriture vers le disque cpu_to_leX()
-*/	
-	if (ino == 0)
-		inode->i_mode = S_IFDIR;
-	else
-		inode->i_mode = (umode_t) le32_to_cpu(raw_inode->mode);	
-	inode->i_op     = &pnlfs_inops;
-	//inode->i_fop    = &pnlfs_operations;
-	inode->i_sb     = sb;
-	inode->i_ino    = ino;
-	inode->i_size   = (loff_t) le32_to_cpu(raw_inode->filesize);
-	inode->i_blocks = (blkcnt_t) le32_to_cpu(raw_inode->nr_used_blocks); 
-	inode->i_atime  = CURRENT_TIME;
-	inode->i_mtime  = CURRENT_TIME;  
-	inode->i_ctime  = CURRENT_TIME;
-
-	//TODO How to know if i've init the inode correctly?????
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) Inode:\n"
-		"\tinode->i_mode=%u\n"
-		"\tinode->i_ino=%lu\n"
-		"\tinode->i_size=%lld\n"
-		"\tinode->i_blocks=%lu\n",
-		inode->i_mode, 
-		inode->i_ino, 
-		inode->i_size,
-		inode->i_blocks);
-
-
+	inode->i_mode = (umode_t) le32_to_cpu(raw_inode->mode);
+	inode->i_op = &pnlfs_inops;
+	inode->i_fop = &pnlfs_operations;
+	//inode->i_sb = &  ?????????????;
+	//inode->i_ino =   ?????????????;
+	//inode->i_size =   ?????????????;
+	//inode->i_blocks =   ?????????????;
+	inode->i_atime = CURRENT_TIME;
+	inode->i_mtime = CURRENT_TIME;  
+	inode->i_ctime = CURRENT_TIME;
 
 	unlock_new_inode(inode);
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) new inode ok!\n");
-	brelse(bh);
 	return inode;
 bad_inode:
 	iget_failed(inode);
@@ -193,16 +165,6 @@ bad_inode:
 }
 
 /*
-A fill_super() callback implementation has the following arguments:
-
-  struct super_block *sb: the superblock structure. The callback
-  	must initialize this properly.
-
-  void *data: arbitrary mount options, usually comes as an ASCII
-	string (see "Mount Options" section)
-
-  int silent: whether or not to be silent on error
-
 In general, data pointed to by the s_fs_info field is information from the disk duplicated in memory for
 reasons of efficiency. Each disk-based filesystem needs to access and update its allocation bitmaps in order to
 allocate or release disk blocks. The VFS allows these filesystems to act directly on the s_fs_info field of
@@ -215,18 +177,18 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 {
 	struct inode *root;
 	struct pnlfs_superblock *pnlsb;
+
 	struct pnlfs_sb_info *pnlsb_info;
 	struct buffer_head *bh;
 	//unsigned long img_size;
 	int ret = -EINVAL;
-	static int i;
-	pnlsb = kmalloc(sizeof(*pnlsb), GFP_KERNEL);
-	if (!pnlsb)
-		return -ENOMEM;
+	
 	pnlsb_info = kzalloc(sizeof(*pnlsb_info), GFP_KERNEL);
 	if (!pnlsb_info)
 		return -ENOMEM;
-
+	pnlsb = kmalloc(sizeof(*pnlsb), GFP_KERNEL);
+	if (!pnlsb)
+		return -ENOMEM;
 	//initialiser la struct super_block passée en paramètre
 	/*initialiser les trois premiers champs dans la struct super_block passée en paramètre*/
 	sb->s_magic     = PNLFS_MAGIC;
@@ -241,6 +203,7 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 		ret = -EIO;
 		goto error;
 	}
+	//Attention, les bitmaps doivent être copiés par lignes de 64 bits ! TODO tips: romfs_blk_read in fs/romfs/storage.c
 	memcpy(pnlsb, bh->b_data, PNLFS_BLOCK_SIZE);
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) Superblock: (%ld)\n"
 		"\tmagic=%#x\n"
@@ -254,52 +217,27 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 		pnlsb->magic, pnlsb->nr_blocks, pnlsb->nr_inodes, pnlsb->nr_istore_blocks,
 		pnlsb->nr_ifree_blocks, pnlsb->nr_bfree_blocks, pnlsb->nr_free_inodes,
 		pnlsb->nr_free_blocks);
-
 	/*Le champ s fs info peut être utilisé pour stocker des données spécifiques au FS, 
-	comme celles de la struct pnlfs_sb_info (pnlfs.h) */		
-	pnlsb_info->nr_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_blocks);
-	pnlsb_info->nr_inodes = (uint32_t) le32_to_cpu(pnlsb->nr_inodes);
-	pnlsb_info->nr_istore_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_istore_blocks);
-	pnlsb_info->nr_ifree_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_ifree_blocks);
-	pnlsb_info->nr_bfree_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_bfree_blocks);
-	pnlsb_info->nr_free_inodes = (uint32_t) le32_to_cpu(pnlsb->nr_free_inodes);
-	pnlsb_info->nr_free_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_free_blocks);
-
-
-	//how to alocate the ifree_bitmap 
-	pnlsb_info->ifree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
-	//where is the bitmaps?
-	//we know it's only 1 bloc	
-	//-inside le bloc after sb and nr_istore_blocks
-	//-we have to calculate to know where is the bloc of bitmaps
-	if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 1))) {
-		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
-		ret = -EIO;
-		goto error;
-	}
-	//TODO Attention, les bitmaps doivent être copiés par lignes de 64 bits !
-  /*nombre de lignes =  1*4096*8/64   */
-	//il faut 1 lignes de 64 bits at a time
-	//we copy 1 byte at a time
-	//for(int i = 0; i < nr_ifree_blocks * PNLFS_BLOCK_SIZE * 8 / 64; i++){	
-	for(i = 0; i < 512; i=i+16)
-		memcpy(pnlsb_info->ifree_bitmap + sizeof(char), bh->b_data, 1); //16 lines (1bytes=16*64bits)
+	comme celles de la struct pnlfs_sb_info (pnlfs.h) */
 	
-
-
-	pnlsb_info->bfree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
-	if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 2))) {
-		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
-		ret = -EIO;
-		goto error;
-	}
- 	for(i = 0; i < 512; i=i+16) 
-		memcpy(pnlsb_info->bfree_bitmap + sizeof(char), bh->b_data, 1); 
-
-
-
+	sb->s_fs_info = pnlsb;
+	/*
+	memcpy(pnlsb_info, bh->b_data, PNLFS_BLOCK_SIZE);
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) Superblock info: (%ld)\n"
+		"\tnr_blocks=%u\n"
+		"\tnr_inodes=%u (istore=%u blocks)\n"
+		"\tnr_ifree_blocks=%u\n"
+		"\tnr_bfree_blocks=%u\n"
+		"\tnr_free_inodes=%u\n"
+		"\tnr_free_blocks=%u\n",
+		sizeof(struct pnlfs_sb_info),
+		pnlsb_info->nr_blocks, pnlsb_info->nr_inodes, pnlsb_info->nr_istore_blocks,
+		pnlsb_info->nr_ifree_blocks, pnlsb_info->nr_bfree_blocks, pnlsb_info->nr_free_inodes,
+		pnlsb_info->nr_free_blocks);
 	sb->s_fs_info = pnlsb_info;
-	//Once done, bh should be released
+	*/
+
+	//TODO Once done, bh should be released using: brelse(bh);
 	brelse(bh);
 	//récupérer l’inode racine du disque (inode 0)	
 	root = pnlfs_iget(sb, 0);
@@ -317,23 +255,23 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	}
 	return 0;
 error:
-	sb->s_fs_info = NULL;
-	if(pnlsb_info)
-		kfree(pnlsb_info);
-	if(pnlsb)
-		kfree(pnlsb);
-	return ret;
+        sb->s_fs_info = NULL;
+        if(pnlsb_info)
+                kfree(pnlsb_info);
+        if(pnlsb)
+                kfree(pnlsb);
+        return ret;
 }
 
 /*
 The mount() method must return the root dentry of the tree requested by
 caller.  An active reference to its superblock must be grabbed and the
 superblock must be locked.  On failure it should return ERR_PTR(error).
-
-The get_sb_bdev( ) VFS function allocates and initializes a new superblock suitable for disk-based
-filesystems ; it receives the address of the ext2_fill_super( ) function, which reads the disk
-superblock from the Ext2 disk partition.
 */
+
+/*The get_sb_bdev( ) VFS function allocates and initializes a new superblock suitable for disk-based
+filesystems ; it receives the address of the ext2_fill_super( ) function, which reads the disk
+superblock from the Ext2 disk partition.*/
 static struct dentry *pnlfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
@@ -348,10 +286,10 @@ static void kill_pnlfs_super(struct super_block *s)
 }
 
 static struct file_system_type pnlfs_type = {
-	.name	 = "pnl_VFS",
-	.owner 	 = THIS_MODULE,
-	.mount	 = pnlfs_mount,
-	.kill_sb = kill_pnlfs_super,
+	    .name			= "pnl_VFS",
+	    .owner 		= THIS_MODULE,
+			.mount		= pnlfs_mount,
+			.kill_sb	= kill_pnlfs_super,
 };
 MODULE_ALIAS_FS("pnl_VFS");
 

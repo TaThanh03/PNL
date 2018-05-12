@@ -92,7 +92,7 @@ static struct pnlfs_superblock *write_superblock(int fd, struct stat *fstats)
 	if (mod != 0)
 		nr_inodes += mod;
 	nr_istore_blocks = idiv_ceil(nr_inodes, PNLFS_INODES_PER_BLOCK);
-	nr_ifree_blocks = idiv_ceil(nr_inodes, PNLFS_BLOCK_SIZE * 8);
+	nr_ifree_blocks = idiv_ceil(nr_inodes, PNLFS_BLOCK_SIZE * 8); // car 1 byte = 8 bits et on stocke ces informations sur les bits
 	nr_bfree_blocks = idiv_ceil(nr_blocks, PNLFS_BLOCK_SIZE * 8);
 	nr_data_blocks = nr_blocks - 1 - nr_istore_blocks - nr_ifree_blocks - nr_bfree_blocks;
 
@@ -121,9 +121,13 @@ static struct pnlfs_superblock *write_superblock(int fd, struct stat *fstats)
 	       "\tnr_free_inodes=%u\n"
 	       "\tnr_free_blocks=%u\n",
 	       sizeof(struct pnlfs_superblock),
-	       sb->magic, sb->nr_blocks, sb->nr_inodes, sb->nr_istore_blocks,
-	       sb->nr_ifree_blocks, sb->nr_bfree_blocks, sb->nr_free_inodes,
-	       sb->nr_free_blocks);
+	      sb->magic, 
+				sb->nr_blocks, 
+				sb->nr_inodes, sb->nr_istore_blocks,	       
+				sb->nr_ifree_blocks, 
+				sb->nr_bfree_blocks, 
+				sb->nr_free_inodes,
+	      sb->nr_free_blocks);
 /*
 Superblock: (4096)
 	magic=0x434f5746
@@ -197,7 +201,7 @@ static int write_ifree_blocks(int fd, struct pnlfs_superblock *sb)
 	memset(ifree, 0xff, PNLFS_BLOCK_SIZE);
 
 	/* First ifree block, containing first 2 used inodes */
-	ifree[0] = htole64(0xfffffffffffffffc);
+	ifree[0] = htole64(0xfffffffffffffffc); // 4 lignes de 64 bits
 	ret = write(fd, ifree, PNLFS_BLOCK_SIZE);
 	if (ret != PNLFS_BLOCK_SIZE)
 		return -1;
