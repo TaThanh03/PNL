@@ -77,6 +77,85 @@ static const struct super_operations pnlfs_sops = {
 	.alloc_inode	= pnlfs_alloc_inode,
 	.destroy_inode	= pnl_destroy_inode,
 };
+
+static int pnlfs_readdir(struct file *file, struct dir_context *ctx)
+{
+	struct pnlfs_inode_info *pnli;
+	struct inode *i = file_inode(file);
+	uint32_t nr_ents;
+	loff_t limit;
+	unsigned long curofs = 1;
+	limit = i->i_size;
+	
+	char *name = "foo foo";
+	if (!(i->i_mode == S_IFDIR)){
+		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Not a directory!!\n");
+		return -EINVAL;
+	}
+
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir for dir_i #%lu\n file %pD2, pos=%d\n", i->i_ino, file, (int)ctx->pos);
+	if (ctx->pos < 0)
+		return -EINVAL;
+
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+
+	pnli = PNLFS_I(i); 
+	nr_ents = pnli->nr_entries;
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Number of files/dirs in directory %ld\n", (unsigned long)nr_ents);
+	for (i = 0; i < nr_ents; i++) {
+		curofs++;
+		/* First loop: curofs = 2; pos = 2 */
+		if (curofs < ctx->pos) {
+			pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Skipping dirent because curofs %ld < offset %ld\n", curofs, (unsigned long)ctx->pos);
+			continue;
+		}
+		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Dirent %ld\n", (unsigned long)ctx->pos);
+		//type  = DT_DIR or DT_REG
+		if (!dir_emit(ctx, name, strlen(name), i->i_ino, DT_REG))
+			break;
+		ctx->pos++;
+		
+	}
+	return 0;
+
+
+
+/*
+
+	if (ctx->pos == 0) {
+		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir dir_emit_dots\n");
+		if (!dir_emit_dots(file, ctx))
+			goto out;
+		ctx->pos++;
+	}
+
+	if (ctx->pos > limit)
+		goto out;
+
+	return 0;
+out:
+	return 0;
+	*/
+}
+
+static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
+{
+  ino_t ino = 0;;
+  const char *name = dentry->d_name.name;
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_inode_by_name\n"); 
+
+	//how to know in which dir we are?
+	//how to search for correspond ino base on given "name"?
+  switch (dir->i_ino) {
+  	case 0: //the root directory
+    	if (strcmp(name,"foo")==0) ino=1;
+    	break;
+		default:
+			break;
+  }
+	return (ino);
+}
 /*
 lookup: called when the VFS needs to look up an inode in a parent
 	directory. The name to look for is found in the dentry. This
@@ -98,34 +177,28 @@ lookup: called when the VFS needs to look up an inode in a parent
 */
 static struct dentry *pnlfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
-  int ino;
-  struct inode *inode;
-  const char *name;
-
-  ino = -1;
-  inode = NULL;
-  name = dentry->d_name.name;
+	ino_t ino;
+  struct inode *ip = NULL;
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_lookup\n"); 
-  switch (dir->i_ino) {
-  	case 0: //the root directory
-    	if (strcmp(name,"foo")==0) ino=1;
-    	break;
-		default:
-			break;
-  }
-
-  if (ino>=0) {
-    inode=pnlfs_iget(dir->i_sb, ino);
-  }	
-
-  d_add(dentry,inode);
-  return NULL;
+	//get inode base on name
+	ino = pnlfs_inode_by_name(dir, dentry);
+	if (ino) {
+		ip = pnlfs_iget(dir->i_sb, ino);
+		if (IS_ERR(ip))
+			return ERR_CAST(ip);
+	}
+	d_add(dentry, ip);
+	return NULL;
 }
 
 static const struct inode_operations pnlfs_inops = {
 	.lookup = pnlfs_lookup,
 };
 
+
+static const struct file_operations pnlfs_operations = {
+	.iterate_shared	= pnlfs_readdir,
+};
 
 static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 {
@@ -161,7 +234,7 @@ lecture depuis le disque leX_to_cpu()
 	else
 		inode->i_mode = (umode_t) le32_to_cpu(raw_inode->mode);	
 	inode->i_op     = &pnlfs_inops;
-	//inode->i_fop    = &pnlfs_operations;
+	inode->i_fop    = &pnlfs_operations;
 	inode->i_sb     = sb;
 	inode->i_ino    = ino;
 	inode->i_size   = (loff_t) le32_to_cpu(raw_inode->filesize);
@@ -180,8 +253,6 @@ lecture depuis le disque leX_to_cpu()
 		inode->i_ino, 
 		inode->i_size,
 		inode->i_blocks);
-
-
 
 	unlock_new_inode(inode);
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) new inode ok!\n");
@@ -285,8 +356,6 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	for(i = 0; i < 512; i=i+16)
 		memcpy(pnlsb_info->ifree_bitmap + sizeof(char), bh->b_data, 1); //16 lines (1bytes=16*64bits)
 	
-
-
 	pnlsb_info->bfree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
 	if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 2))) {
 		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
