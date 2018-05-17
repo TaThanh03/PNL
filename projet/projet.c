@@ -141,12 +141,11 @@ out:
 
 static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
 {
-  ino_t ino = 0;;
+  ino_t ino = 0;
+	int i;
   const char *name = dentry->d_name.name;
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_inode_by_name\n"); 
-
-	//how to know in which dir we are?
-	//how to search for correspond ino base on given "name"?
+/*
   switch (dir->i_ino) {
   	case 0: //the root directory
     	if (strcmp(name,"foo")==0) ino=1;
@@ -155,8 +154,47 @@ static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
 			break;
   }
 	return (ino);
+*/
+	struct buffer_head *bh;
+	struct pnlfs_dir_block *dir_block;
+	struct pnlfs_inode_info *dir_info;
+	
+	//lire directory meta-info
+	dir_info = PNLFS_I(dir); 
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) Directory infos (Inode infos):\n"
+		"\ti_ino=%lu\n"
+		"\tindex_block=%u\n"
+		"\tnr_entries=%u\n",
+		dir_info->vfs_inode.i_ino,
+		dir_info->index_block,
+		dir_info->nr_entries
+	);
+
+	bh = sb_bread(dir->i_sb, dir_info->index_block);
+	if (!bh) 
+		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read directory %lu\n", dir->i_ino);
+	dir_block = (struct pnlfs_dir_block *) bh->b_data;
+
+	for (i = 0; i < dir_info->nr_entries; i++){
+		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) %s\n", dir_block->files[i].filename); 
+		if (strcmp(dir_block->files[i].filename, name) == 0) {
+			ino = le32_to_cpu(dir_block->files[i].inode);
+			break;
+		}
+	}
+	return (ino);
 }
+
+
+
 /*
+
+struct pnlfs_dir_block {
+	struct pnlfs_file {
+		__le32 inode;
+		char filename[PNLFS_FILENAME_LEN];
+	} files[PNLFS_MAX_DIR_ENTRIES];
+};
 lookup: called when the VFS needs to look up an inode in a parent
 	directory. The name to look for is found in the dentry. This
 	method must call d_add() to insert the found inode into the
@@ -166,7 +204,7 @@ lookup: called when the VFS needs to look up an inode in a parent
 	dentry). Returning an error code from this routine must only
 	be done on a real error, otherwise creating inodes with system
 	calls like create(2), mknod(2), mkdir(2) and so on will fail.
-	If you wish to overload the dentry methods then you should
+	If you wish to overload the dentry methods then you shoulddir
 	initialise the "d_dop" field in the dentry; this is a pointer
 	to a struct "dentry_operations".
 	This method is called with the directory inode semaphore held
@@ -202,33 +240,39 @@ static const struct file_operations pnlfs_operations = {
 
 static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 {
+	int block_no;
 	struct inode *inode;
 	struct pnlfs_inode_info *pnli;
 	struct pnlfs_inode *raw_inode;
 	struct buffer_head * bh;
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) inode %lu\n", ino);
-	inode = iget_locked(sb, ino);
+	
+	//iget_locked appellera le constructeur pnlfs_alloc_inode
+	inode = iget_locked(sb, ino); 
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
+
 	//If the inode is in cache
 	if (!(inode->i_state & I_NEW)) 
 		return inode;
+
 	//If the inode is not in cache
 	pnli = PNLFS_I(inode); 
+	
+	//trouver le bloque correspondant l'inode 
+	//example: inode 35 est dans bloque 2 = 1 + 35/30 
+	block_no = 1 + ino / PNLFS_INODES_PER_BLOCK;
+	
 	//Lire cette inode sur le disque
-	//TODO Do we have to convert from vfs's inode number to pnlfs's inode number ?
-	bh = sb_bread(sb, inode->i_ino);
+	bh = sb_bread(sb, block_no); 
+
 	if (!bh) {
 		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read inode %lu\n", inode->i_ino);
 		goto bad_inode;
 	}
 	raw_inode = (struct pnlfs_inode *) bh->b_data;
+	
 	//Initialiser les champs
-
-/*
-lecture depuis le disque leX_to_cpu() 
-écriture vers le disque cpu_to_leX()
-*/	
 	if (ino == 0)
 		inode->i_mode = S_IFDIR;
 	else
@@ -243,16 +287,26 @@ lecture depuis le disque leX_to_cpu()
 	inode->i_mtime  = CURRENT_TIME;  
 	inode->i_ctime  = CURRENT_TIME;
 
-	//TODO How to know if i've init the inode correctly?????
+	//sauvegarder les metadonnees pour directory
+	if (inode->i_mode = S_IFDIR){
+		pnli->index_block = le32_to_cpu(raw_inode->index_block);  
+		pnli->nr_entries	= le32_to_cpu(raw_inode->nr_entries);
+	}
+
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) Inode:\n"
-		"\tinode->i_mode=%u\n"
+		"\tinode->i_mode=%u\n"	
 		"\tinode->i_ino=%lu\n"
 		"\tinode->i_size=%lld\n"
-		"\tinode->i_blocks=%lu\n",
+		"\tinode->i_blocks=%lu\n"
+		"\tpnli->index_block=%u\n"
+		"\tpnli->nr_entries=%u\n",
 		inode->i_mode, 
 		inode->i_ino, 
 		inode->i_size,
-		inode->i_blocks);
+		inode->i_blocks,
+		pnli->index_block,
+		pnli->nr_entries
+	);
 
 	unlock_new_inode(inode);
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) new inode ok!\n");
@@ -353,17 +407,17 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	//il faut 1 lignes de 64 bits at a time
 	//we copy 1 byte at a time
 	//for(int i = 0; i < nr_ifree_blocks * PNLFS_BLOCK_SIZE * 8 / 64; i++){	
-	for(i = 0; i < 512; i=i+16)
+	for(i = 0; i < 8; i++)
 		memcpy(pnlsb_info->ifree_bitmap + sizeof(char), bh->b_data, 1); //16 lines (1bytes=16*64bits)
-	
+	  //plnsb_info->ifree_bitmap[i] = le64_to_cpu(bh->b_data + ???);
 	pnlsb_info->bfree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
 	if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 2))) {
 		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
 		ret = -EIO;
 		goto error;
 	}
- 	for(i = 0; i < 512; i=i+16) 
-		memcpy(pnlsb_info->bfree_bitmap + sizeof(char), bh->b_data, 1); 
+	//for(i = 0; i < 8; i++)
+	  //plnsb_info->bfree_bitmap[i] = le64_to_cpu(bh->b_data + ???);
 
 
 
