@@ -195,8 +195,27 @@ static struct dentry *pnlfs_lookup(struct inode *dir, struct dentry *dentry, uns
 	return NULL;
 }
 
+//create a regular file
+static int pnlfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
+{
+	//find a inode available by looking at "ifree_bitmap" :( 
+		
+	//asign this new inode inside inode "dir"
+	
+	//update the dentry table? maybe?
+	
+	return 0;
+}
+
+
+
 static const struct inode_operations pnlfs_inops = {
 	.lookup = pnlfs_lookup,
+	.create = pnlfs_create,
+	//.unlink = pnlfs_unlink,
+	//.mkdir  = pnlfs_mkdir,
+	//.rmdir  = pnlfs_rmdir,
+ 	//.rename = pnlfs_rename,
 };
 
 static const struct file_operations pnlfs_operations = {
@@ -283,15 +302,11 @@ bad_inode:
 
 /*
 A fill_super() callback implementation has the following arguments:
-
   struct super_block *sb: the superblock structure. The callback
   	must initialize this properly.
-
   void *data: arbitrary mount options, usually comes as an ASCII
 	string (see "Mount Options" section)
-
   int silent: whether or not to be silent on error
-
 In general, data pointed to by the s_fs_info field is information from the disk duplicated in memory for
 reasons of efficiency. Each disk-based filesystem needs to access and update its allocation bitmaps in order to
 allocate or release disk blocks. The VFS allows these filesystems to act directly on the s_fs_info field of
