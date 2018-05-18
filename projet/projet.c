@@ -80,81 +80,55 @@ static const struct super_operations pnlfs_sops = {
 
 static int pnlfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct pnlfs_inode_info *pnli;
-	struct inode *i = file_inode(file);
+	struct buffer_head * bh;
+	struct pnlfs_inode_info *dir_info;
+	struct inode *i_dir = file_inode(file);
+	struct pnlfs_dir_block *dir_block;
 	uint32_t nr_ents;
-	loff_t limit;
-	unsigned long curofs = 1;
-	limit = i->i_size;
-	
-	char *name = "foo foo";
-	if (!(i->i_mode == S_IFDIR)){
+	int i, pos_start;
+
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir directory #%lu file %pD2, pos=%d\n", i_dir->i_ino, file, (int)ctx->pos);
+	if (!(i_dir->i_mode == S_IFDIR)){
 		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Not a directory!!\n");
 		return -EINVAL;
 	}
-
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir for dir_i #%lu\n file %pD2, pos=%d\n", i->i_ino, file, (int)ctx->pos);
 	if (ctx->pos < 0)
 		return -EINVAL;
-
-	if (!dir_emit_dots(file, ctx))
+	//ctx->pos == 2 after the first "dir_emit_dots"
+	if (ctx->pos == 0){
+		dir_emit_dots(file, ctx);
 		return 0;
-
-	pnli = PNLFS_I(i); 
-	nr_ents = pnli->nr_entries;
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Number of files/dirs in directory %ld\n", (unsigned long)nr_ents);
-	for (i = 0; i < nr_ents; i++) {
-		curofs++;
-		/* First loop: curofs = 2; pos = 2 */
-		if (curofs < ctx->pos) {
-			pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Skipping dirent because curofs %ld < offset %ld\n", curofs, (unsigned long)ctx->pos);
-			continue;
-		}
-		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir Dirent %ld\n", (unsigned long)ctx->pos);
-		//type  = DT_DIR or DT_REG
-		if (!dir_emit(ctx, name, strlen(name), i->i_ino, DT_REG))
-			break;
-		ctx->pos++;
-		
 	}
-	return 0;
-
-
-
-/*
-
-	if (ctx->pos == 0) {
-		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir dir_emit_dots\n");
-		if (!dir_emit_dots(file, ctx))
-			goto out;
+	//Lire directory meta-info
+	dir_info = PNLFS_I(i_dir); 
+	//nr_ents = the number of files/directories in this directory
+	nr_ents = dir_info->nr_entries;
+	//Use nr_ents and ctx->pos to find out how many elements left we have to add to dir_context
+	//Example: if nr_ents=10 but ctx->pos=4 => we have to add 8 mores to dir_context
+	//If directory already filled-out, return immediatement
+	if (ctx->pos == (nr_ents + 2))
+		return 0;
+	//Else start filling the missing elements
+	pos_start = ctx->pos - 2;
+	bh = sb_bread(i_dir->i_sb, dir_info->index_block);
+	if (!bh) 
+		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read directory %lu\n", i_dir->i_ino);
+	dir_block = (struct pnlfs_dir_block *) bh->b_data;
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_readdir nr_entries=%ld\n", (unsigned long)nr_ents);
+	for (i = pos_start; i < nr_ents; i++) {
+		dir_emit(ctx, dir_block->files[i].filename, strlen(dir_block->files[i].filename), le32_to_cpu(dir_block->files[i].inode), DT_UNKNOWN);
 		ctx->pos++;
 	}
-
-	if (ctx->pos > limit)
-		goto out;
-
+	brelse(bh);
 	return 0;
-out:
-	return 0;
-	*/
 }
 
 static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
 {
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_inode_by_name\n"); 
   ino_t ino = 0;
 	int i;
   const char *name = dentry->d_name.name;
-	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_inode_by_name\n"); 
-/*
-  switch (dir->i_ino) {
-  	case 0: //the root directory
-    	if (strcmp(name,"foo")==0) ino=1;
-    	break;
-		default:
-			break;
-  }
-	return (ino);
-*/
 	struct buffer_head *bh;
 	struct pnlfs_dir_block *dir_block;
 	struct pnlfs_inode_info *dir_info;
@@ -169,12 +143,12 @@ static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
 		dir_info->index_block,
 		dir_info->nr_entries
 	);
-
 	bh = sb_bread(dir->i_sb, dir_info->index_block);
 	if (!bh) 
 		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read directory %lu\n", dir->i_ino);
 	dir_block = (struct pnlfs_dir_block *) bh->b_data;
 
+	//trouver le inode correspondant au nom
 	for (i = 0; i < dir_info->nr_entries; i++){
 		pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) %s\n", dir_block->files[i].filename); 
 		if (strcmp(dir_block->files[i].filename, name) == 0) {
@@ -182,19 +156,11 @@ static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
 			break;
 		}
 	}
+	brelse(bh);
 	return (ino);
 }
 
-
-
 /*
-
-struct pnlfs_dir_block {
-	struct pnlfs_file {
-		__le32 inode;
-		char filename[PNLFS_FILENAME_LEN];
-	} files[PNLFS_MAX_DIR_ENTRIES];
-};
 lookup: called when the VFS needs to look up an inode in a parent
 	directory. The name to look for is found in the dentry. This
 	method must call d_add() to insert the found inode into the
@@ -233,7 +199,6 @@ static const struct inode_operations pnlfs_inops = {
 	.lookup = pnlfs_lookup,
 };
 
-
 static const struct file_operations pnlfs_operations = {
 	.iterate_shared	= pnlfs_readdir,
 };
@@ -265,7 +230,6 @@ static struct inode *pnlfs_iget(struct super_block *sb, unsigned long ino)
 	
 	//Lire cette inode sur le disque
 	bh = sb_bread(sb, block_no); 
-
 	if (!bh) {
 		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read inode %lu\n", inode->i_ino);
 		goto bad_inode;
@@ -390,7 +354,6 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	pnlsb_info->nr_free_inodes = (uint32_t) le32_to_cpu(pnlsb->nr_free_inodes);
 	pnlsb_info->nr_free_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_free_blocks);
 
-
 	//how to alocate the ifree_bitmap 
 	pnlsb_info->ifree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
 	//where is the bitmaps?
@@ -427,7 +390,7 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	//récupérer l’inode racine du disque (inode 0)	
 	root = pnlfs_iget(sb, 0);
 	if (IS_ERR(root)) {
-		pr_err("get root inode failed\n");
+		pr_info(KERN_INFO "¯\\_(ツ)_/¯ get root inode failed\n");
 		return PTR_ERR(root);
 	}
 	//définir ses propriétaires
@@ -435,7 +398,7 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	//puis la déclarer comme inode racine
 	sb->s_root = d_make_root(root);
 	if (!(sb->s_root)) {
-		pr_err("get root dentry failed\n");
+		pr_info(KERN_INFO "¯\\_(ツ)_/¯ get root dentry failed\n");
 		return -ENOMEM;
 	}
 	return 0;
