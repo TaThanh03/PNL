@@ -26,6 +26,8 @@ static const struct super_operations pnlfs_sops;
 static const struct inode_operations pnlfs_inops;
 static const struct file_operations pnlfs_operations;
 
+static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry);
+static int pnlfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl);
 static struct dentry *pnlfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
 static struct dentry *pnlfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data);
 static void kill_pnlfs_super(struct super_block *s);
@@ -66,10 +68,12 @@ static void pnl_destroy_inode(struct inode *inode)
 }
 
 static void pnlfs_put_super(struct super_block *sb)
-{	//défaire ce que la fonction pnlfs_fill_super() a fait
+{	
+	//TODO mettre à jour sur disque ex10
+
+	//défaire ce que la fonction pnlfs_fill_super() a fait
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
-	//TODO mis à jour sur disque ?
 }
 
 static const struct super_operations pnlfs_sops = {
@@ -106,7 +110,7 @@ static int pnlfs_readdir(struct file *file, struct dir_context *ctx)
 	//Use nr_ents and ctx->pos to find out how many elements left we have to add to dir_context
 	//Example: if nr_ents=10 but ctx->pos=4 => we have to add 8 mores to dir_context
 	//If directory already filled-out, return immediatement
-	if (ctx->pos == (nr_ents + 2))
+	if (ctx->pos >= (nr_ents + 2))
 		return 0;
 	//Else start filling the missing elements
 	pos_start = ctx->pos - 2;
@@ -126,12 +130,12 @@ static int pnlfs_readdir(struct file *file, struct dir_context *ctx)
 static ino_t pnlfs_inode_by_name(struct inode *dir, struct dentry *dentry)
 {
 	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_inode_by_name\n"); 
-  ino_t ino = 0;
-	int i;
   const char *name = dentry->d_name.name;
+  ino_t ino = 0; 
 	struct buffer_head *bh;
 	struct pnlfs_dir_block *dir_block;
 	struct pnlfs_inode_info *dir_info;
+	int i;
 	
 	//lire directory meta-info
 	dir_info = PNLFS_I(dir); 
@@ -195,14 +199,40 @@ static struct dentry *pnlfs_lookup(struct inode *dir, struct dentry *dentry, uns
 	return NULL;
 }
 
+
+static struct inode *pnlfs_get_free_inode(struct inode *dir)
+{
+	struct inode *fresh_inode;
+	struct pnlfs_sb_info *pnlsb_info;
+	unsigned long *i_bitmap;
+	int i, pos;	
+	
+	//look in ifree_bitmap to find a free inode
+	pnlsb_info = dir->i_sb->s_fs_info;	
+	i_bitmap = pnlsb_info->ifree_bitmap;
+	pos = 0;	
+	for (i = 0; i < 32768; i++){		
+		if(i_bitmap[0] & (1 << i))
+			break;
+		pos++;
+	}
+	pr_info(KERN_INFO "( ͡° ͜ʖ ͡°) pnlfs_get_free_inode pos= %u\n", pos);
+ 	fresh_inode = pnlfs_iget(dir->i_sb, pos);
+	return fresh_inode;
+}
+
+
+
+
 //create a regular file
 static int pnlfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
-	//find a inode available by looking at "ifree_bitmap" :( 
-		
-	//asign this new inode inside inode "dir"
+	struct inode *fresh_inode;
+	//find a inode available by looking at "ifree_bitmap"
+	fresh_inode = pnlfs_get_free_inode(dir);
+	//add this new fresh inode and his "name" inside inode "dir"
 	
-	//update the dentry table? maybe?
+	//if success, change the "1" in bitmap to "0"
 	
 	return 0;
 }
@@ -323,7 +353,7 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	struct buffer_head *bh;
 	//unsigned long img_size;
 	int ret = -EINVAL;
-	static int i;
+	static int i, j;
 	pnlsb = kmalloc(sizeof(*pnlsb), GFP_KERNEL);
 	if (!pnlsb)
 		return -ENOMEM;
@@ -369,34 +399,48 @@ static int pnlfs_fill_super(struct super_block *sb, void *d, int silent)
 	pnlsb_info->nr_free_inodes = (uint32_t) le32_to_cpu(pnlsb->nr_free_inodes);
 	pnlsb_info->nr_free_blocks = (uint32_t) le32_to_cpu(pnlsb->nr_free_blocks);
 
-	//how to alocate the ifree_bitmap 
-	pnlsb_info->ifree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
+	//alocate the ifree_bitmap and bfree_bitmap storage 
+	pnlsb_info->ifree_bitmap = kmalloc(PNLFS_BLOCK_SIZE / 8 * pnlsb_info->nr_ifree_blocks * sizeof(uint64_t), GFP_KERNEL);
+	memset(pnlsb_info->ifree_bitmap, 0xff, PNLFS_BLOCK_SIZE);
+
+	pnlsb_info->bfree_bitmap = kmalloc(PNLFS_BLOCK_SIZE / 8 * pnlsb_info->nr_bfree_blocks * sizeof(uint64_t), GFP_KERNEL);
+	memset(pnlsb_info->bfree_bitmap, 0xff, PNLFS_BLOCK_SIZE);
+
+	//we don't know how to copy ifree_bitmap from disk so we do this :(
+	pnlsb_info->ifree_bitmap[0] = cpu_to_le64(0xfffffffffffffffc);	
+
+	//we don't know how to copy bfree_bitmap from disk so we do this :(
+	uint64_t mask, line;
+	uint32_t nr_used = pnlsb_info->nr_istore_blocks +
+		pnlsb_info->nr_ifree_blocks +
+		pnlsb_info->nr_bfree_blocks + 4;	
+	i = 0;
+	while (nr_used) {
+		line = 0xffffffffffffffff;
+		for (mask = 0x1; mask != 0x0; mask <<= 1) {
+			line &= ~mask;
+			nr_used--;
+			if (!nr_used)
+				break;
+		}
+		pnlsb_info->bfree_bitmap[i] = cpu_to_le64(line);
+		i++;
+	}
+
 	//where is the bitmaps?
-	//we know it's only 1 bloc	
 	//-inside le bloc after sb and nr_istore_blocks
 	//-we have to calculate to know where is the bloc of bitmaps
-	if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 1))) {
-		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
-		ret = -EIO;
-		goto error;
+/*
+	for (i = 0; i < pnlsb_info->nr_ifree_blocks; i++){
+		if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 1 + i))) {
+			pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
+			ret = -EIO;
+			goto error;
+		}
+		for(j = 0; j < 512 * pnlsb_info->nr_ifree_blocks ; j++)
+			*(pnlsb_info->ifree_bitmap) << 64*j = le64_to_cpu(bh->b_data << 64*j);
 	}
-	//TODO Attention, les bitmaps doivent être copiés par lignes de 64 bits !
-  /*nombre de lignes =  1*4096*8/64   */
-	//il faut 1 lignes de 64 bits at a time
-	//we copy 1 byte at a time
-	//for(int i = 0; i < nr_ifree_blocks * PNLFS_BLOCK_SIZE * 8 / 64; i++){	
-	for(i = 0; i < 8; i++)
-		memcpy(pnlsb_info->ifree_bitmap + sizeof(char), bh->b_data, 1); //16 lines (1bytes=16*64bits)
-	  //plnsb_info->ifree_bitmap[i] = le64_to_cpu(bh->b_data + ???);
-	pnlsb_info->bfree_bitmap = kmalloc(PNLFS_BLOCK_SIZE, GFP_KERNEL);
-	if (!(bh = sb_bread(sb, pnlsb->nr_istore_blocks + 2))) {
-		pr_info(KERN_INFO "¯\\_(ツ)_/¯ unable to read superblock");
-		ret = -EIO;
-		goto error;
-	}
-	//for(i = 0; i < 8; i++)
-	  //plnsb_info->bfree_bitmap[i] = le64_to_cpu(bh->b_data + ???);
-
+*/
 
 
 	sb->s_fs_info = pnlsb_info;

@@ -137,6 +137,11 @@ Superblock: (4096)
 	nr_bfree_blocks=1
 	nr_free_inodes=7678
 	nr_free_blocks=7644
+Inode store: wrote 30 blocks
+	inode size = 16
+Ifree blocks: wrote 1 blocks
+Bfree blocks: wrote 1 blocks
+
 */
 	return sb;
 }
@@ -201,7 +206,7 @@ static int write_ifree_blocks(int fd, struct pnlfs_superblock *sb)
 	memset(ifree, 0xff, PNLFS_BLOCK_SIZE);
 
 	/* First ifree block, containing first 2 used inodes */
-	ifree[0] = htole64(0xfffffffffffffffc); // 4 lignes de 64 bits
+	ifree[0] = htole64(0xfffffffffffffffc); // 4 lignes de 64 bits // NO this is 1 block!!!
 	ret = write(fd, ifree, PNLFS_BLOCK_SIZE);
 	if (ret != PNLFS_BLOCK_SIZE)
 		return -1;
